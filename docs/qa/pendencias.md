@@ -150,7 +150,7 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Resolução:** Kysely foi aceito como query builder e infraestrutura, com domínio independente, PostgreSQL 14 oficial, SQLite auxiliar e camada obrigatória de checksum SHA-256 sobre o migrator.
 - **Decisão humana original em 2026-07-18:** não aceitar a ADR 0004 antes da conclusão e revisão do spike com Kysely.
 - **Decisão humana posterior:** migrations aplicadas são imutáveis; correções usam novas migrations; nome e checksum são registrados em tabela auxiliar; divergência falha fechada; execução ocorre em etapa separada de deploy, nunca no startup da API.
-- **Decisão necessária:** nenhuma para escolha da estratégia. A implementação e seus testes dependem de autorização futura; a SPEC 002-A continua bloqueada pelo spike de RLS.
+- **Decisão necessária:** nenhuma para escolha da estratégia. A implementação e seus testes dependem de autorização futura; o spike de RLS foi concluído, mas a SPEC 002-A continua bloqueada por sua revisão humana e pelos demais gates.
 
 ## 8. Pendências da SPEC 002
 
@@ -160,13 +160,13 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 |---|---|---|
 | ADR 0004 | `ACCEPTED`; Kysely, mapeamentos de tipos e checksum SHA-256 aprovados | PEND-002-001 encerrada |
 | ADR 0005 | `ACCEPTED` | PEND-002-004 parcialmente resolvida |
-| ADR 0006 | `ACCEPTED`; implementação de RLS depende de spike PostgreSQL | PEND-002-003 parcialmente resolvida e PEND-002-006 aberta |
+| ADR 0006 | `ACCEPTED`; spike PostgreSQL de RLS concluído com recomendação favorável, aguardando aceite humano da mecânica | PEND-002-003 parcialmente resolvida e PEND-002-006 em revisão |
 | Usuário–empresa | muitos-para-muitos por `Membership` | PEND-002-002 encerrada |
 | Empresa ativa | determinada e validada no servidor | PEND-002-002 encerrada quanto à autoridade do contexto |
 | Papéis | `superadmin` global separado de papéis empresariais | PEND-002-003 parcialmente resolvida |
 | Autorização | negação por padrão | PEND-002-003 parcialmente resolvida |
 | Superadmin | nenhum bypass implícito de tenant | PEND-002-003 parcialmente resolvida |
-| Evidência | SQLite não valida isolamento multiempresa | PEND-002-006 permanece aberta até spike PostgreSQL |
+| Evidência | SQLite não valida isolamento multiempresa | spike RLS validado somente no PostgreSQL 14; PEND-002-006 aguarda aceite humano |
 | Ordem | SPEC 002 em especificação; 002-A e 003 bloqueadas | `EXECUTAR.md` |
 
 ### PEND-002-001 — Estratégia de persistência e migrations
@@ -178,7 +178,7 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Impacto resultante:** a estratégia de persistência não bloqueia mais a SPEC 002-A. Nenhuma dependência ou migration definitiva está autorizada por este encerramento.
 - **Evidência:** `docs/qa/spikes/spec-002-kysely-persistence.md`, ADR 0004 e `docs/qa/evidencias/spec-002.md`, seção 16.
 - **Fitness functions futuras:** impedir imports de Kysely no domínio; validar drift dos tipos; alterar migration aplicada deve falhar pelo checksum; API deve iniciar sem executar migrations; validações finais devem passar em PostgreSQL 14.
-- **Decisão humana registrada:** o aceite da ADR não libera implementação. A SPEC 002-A permanece bloqueada até a conclusão do spike de RLS.
+- **Decisão humana registrada:** o aceite da ADR não libera implementação. O spike de RLS foi concluído depois desta decisão, mas a SPEC 002-A continua bloqueada até revisão humana e autorização explícita.
 - **Decisão necessária:** nenhuma para esta pendência; cumprir a ADR em execução futura autorizada.
 
 ### PEND-002-002 — Associação multiempresa e empresa ativa
@@ -226,14 +226,15 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 ### PEND-002-006 — RLS e contexto de tenant no pool
 
-- **Prioridade:** Crítica.
-- **Status:** aberta; ADR 0006 aceita e spike PostgreSQL obrigatório para definir a implementação.
-- **Descrição:** RLS foi aceita como direção de defesa em profundidade, mas `SET LOCAL` é apenas candidato; role de runtime, pool, query builder e concorrência ainda não foram comprovados.
-- **Impacto:** configuração incorreta pode manter contexto entre requisições ou criar falsa garantia de isolamento. Com a ADR 0004 aceita, este spike de RLS permanece o gate técnico pendente para iniciar a SPEC 002-A.
-- **Evidência:** ADR 0006 e SPEC 002, seções 17, 18.6 e 21.3.
+- **Prioridade:** Crítica; evidência técnica concluída em 2026-07-18.
+- **Status:** em revisão humana; o spike PostgreSQL foi validado tecnicamente, mas a mecânica ainda não foi incorporada à ADR por decisão humana posterior.
+- **Descrição original:** RLS foi aceita como direção de defesa em profundidade, mas `SET LOCAL` era apenas candidato; role de runtime, pool, query builder e concorrência ainda não tinham sido comprovados.
+- **Resultado técnico:** PostgreSQL 14.23 validou role runtime não-owner e sem `BYPASSRLS`, `ENABLE` + `FORCE RLS`, `set_config(..., true)` transacional, negação por padrão, CRUD isolado, pool após commit/rollback, 40 transações concorrentes A/B, IDOR, repositories com filtro independente, contextos separados e job global sem resíduo.
+- **Impacto resultante:** o gate técnico de isolamento possui evidência favorável. A SPEC 002-A não é liberada automaticamente: depende do aceite humano deste resultado, dos demais gates da spec e de autorização explícita.
+- **Evidência:** `docs/qa/spikes/spec-002-postgres-rls.md`, ADR 0006 e SPEC 002, seções 17, 18.6 e 21.3.
 - **Decisões humanas registradas:** SQLite não é evidência suficiente; `superadmin` não possui bypass implícito; a forma de RLS depende de spike PostgreSQL.
-- **Recomendação:** spike no PostgreSQL 14 com role sem owner/`BYPASSRLS`, transações concorrentes, contexto ausente/inválido, reuso de conexão e tentativa de acesso cruzado.
-- **Decisão necessária:** escolher policies, propagação do contexto e padrão de transação somente após evidência reproduzível.
+- **Recomendação:** aceitar a mecânica validada: role runtime não-owner/`NOBYPASSRLS`, `ENABLE` + `FORCE`, policy `USING`/`WITH CHECK`, contexto local por transação, filtros obrigatórios, planos tenant/plataforma separados e fitness functions PostgreSQL.
+- **Decisão necessária:** revisar o relatório, registrar a mecânica na ADR 0006 e decidir formalmente se esta pendência pode ser encerrada quanto ao isolamento.
 
 ### PEND-002-007 — Retenção e privacidade da auditoria
 

@@ -5,13 +5,14 @@
 - **Data:** 2026-07-18
 - **Atualização decisória:** 2026-07-18 — aceite das ADRs 0005/0006 e registro dos gates técnicos remanescentes
 - **Aceite de persistência:** 2026-07-18 — ADR 0004 aceita após revisão do spike Kysely
+- **Spike PostgreSQL RLS:** 2026-07-18 — mecanismo candidato validado tecnicamente; aceite humano pendente
 - **Branch observada:** `spike/spec-002-postgres-rls`
-- **Modo:** `documentation`
+- **Modo:** `validation`
 - **Spec autorizada:** 002
 - **Estado resultante:** `EM_ESPECIFICACAO`
 - **Commit:** não criado; não autorizado
 - **Produção:** não acessada
-- **Código/migrations:** não criados nem alterados
+- **Código/migrations:** somente experimentais em `spikes/postgres-rls`; módulos e migrations definitivos não alterados
 
 ## 2. Objetivo da execução
 
@@ -137,7 +138,7 @@ Os comandos e resultados finais de validação estática devem ser registrados n
 A SPEC continua não pronta porque ainda dependem de decisão:
 
 - matriz RBAC detalhada, delegação e papéis customizados;
-- implementação da RLS com pool e role real após spike PostgreSQL;
+- aceite humano da mecânica RLS já validada com pool e role real no PostgreSQL;
 - MFA, TTL, senha e bootstrap;
 - provedor de recuperação;
 - retenção/privacidade da auditoria;
@@ -314,3 +315,60 @@ Resultados verificados:
 - `git diff --check` não identificou erro de whitespace;
 - os blocos Markdown permanecem balanceados;
 - a busca estática não identificou credencial ou secret no diff.
+
+## 17. Spike PostgreSQL RLS — 2026-07-18
+
+### Identificação e escopo
+
+- **Modo:** `validation`;
+- **tipo:** spike técnico descartável;
+- **diretório:** `spikes/postgres-rls`;
+- **relatório:** `docs/qa/spikes/spec-002-postgres-rls.md`;
+- **PostgreSQL:** 14.23 local, container `healthy`;
+- **módulos definitivos:** nenhuma alteração em `apps/**` ou `packages/**`;
+- **spike Kysely anterior:** não alterado;
+- **produção:** não acessada;
+- **commit:** não criado;
+- **estado da SPEC 002:** mantido em `EM_ESPECIFICACAO`;
+- **SPEC 002-A e SPEC 003:** não liberadas.
+
+### Evidências executáveis
+
+| Evidência | Resultado |
+|---|---|
+| RLS | `ENABLE` e `FORCE` confirmados no catálogo |
+| roles | owner, aplicação e plataforma sem superuser/`BYPASSRLS`; aplicação distinta do owner |
+| negação por padrão | ausência retorna zero linhas; escrita falha; contexto inválido falha com erro sanitizado |
+| CRUD tenant | leitura, insert, update e delete isolados entre A e B |
+| IDOR/troca de empresa | ID alheio equivale a inexistente; tentativa de escrever B sob contexto A falha |
+| contexto | `set_config('app.current_company_id', companyId, true)` somente em transação |
+| commit/rollback | mesma conexão `max=1` sem contexto residual |
+| pool | 20 alternâncias A/B e 16 probes simultâneos em múltiplos backends sem vazamento |
+| concorrência | 40 transações A/B sobre múltiplos backends sem cruzamento |
+| repositories | `TenantContext` obrigatório e filtro comprovado mesmo sob superuser que ignora RLS |
+| plataforma | role sem grant tenant-owned; job itera empresas com contexto explícito |
+| lint | aprovado, zero warnings |
+| typecheck | aprovado em TypeScript estrito |
+| testes unitários/arquiteturais | 3 arquivos, 12 testes aprovados |
+| testes PostgreSQL | 1 arquivo, 13 testes aprovados |
+| testes concorrentes | 1 arquivo, 3 testes aprovados |
+| build | aprovado |
+| auditoria de secrets | aprovada |
+| auditoria de dependências de produção | nenhuma vulnerabilidade conhecida |
+| cleanup | zero tabelas e zero roles `spike_rls_*` no catálogo |
+
+### Resultado arquitetural
+
+A mecânica candidata da ADR 0006 foi tecnicamente validada no PostgreSQL 14:
+
+- role runtime não-owner e `NOBYPASSRLS`;
+- `ENABLE` + `FORCE ROW LEVEL SECURITY`;
+- policy `USING` + `WITH CHECK` baseada em configuração local;
+- transação obrigatória com `set_config(..., true)`;
+- repositories ainda filtrados por empresa;
+- `TenantContext` e `PlatformContext` separados também por grants/pools;
+- jobs globais iterando tenants explicitamente.
+
+O resultado sustenta encerrar o gate técnico de isolamento após revisão humana.
+Ele não altera sozinho a ADR 0006, não libera a SPEC 002-A, não resolve os
+demais gates da SPEC 002 e não autoriza implementação definitiva.

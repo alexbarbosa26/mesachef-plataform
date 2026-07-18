@@ -4,12 +4,12 @@
 
 - **Estado:** `EM_ESPECIFICACAO`
 - **Atualização:** 2026-07-18
-- **Modo desta revisão:** documentação
+- **Modo desta revisão:** validação técnica por spike descartável
 - **Pronta para implementação:** não
 - **Dependência concluída:** SPEC 001
 - **Próxima spec:** SPEC 003 permanece bloqueada
 
-As ADRs 0005 e 0006 estão aceitas, enquanto a ADR 0004 permanece `PROPOSED`. Esta SPEC não pode mudar para `PRONTA_PARA_IMPLEMENTAR` antes dos spikes de persistência com Kysely e de RLS no PostgreSQL 14, nem enquanto as demais decisões críticas da seção 25 estiverem abertas. Esta revisão não autoriza código, instalação de dependências, migrations físicas, criação de credenciais, acesso a banco ou interface.
+As ADRs 0004, 0005 e 0006 estão aceitas. O spike de persistência com Kysely foi concluído e aceito; o spike de RLS no PostgreSQL 14 também foi concluído com evidência técnica favorável, mas sua mecânica ainda depende de revisão e aceite humano. Esta SPEC não pode mudar para `PRONTA_PARA_IMPLEMENTAR` enquanto as demais decisões críticas da seção 25 estiverem abertas. Esta validação autorizou somente código, roles e migrations experimentais em `spikes/postgres-rls`; não autoriza implementação ou migrations definitivas, produção ou interface.
 
 ## 1. Contexto
 
@@ -68,9 +68,9 @@ Definir e, em execuções futuras explicitamente autorizadas, entregar de forma 
 
 ### 4.3 ADRs da SPEC 002
 
-- ADR 0004 — `PROPOSED`; Kysely nos adapters de persistência, condicionado a spike técnico;
+- ADR 0004 — `ACCEPTED`; Kysely nos adapters de infraestrutura, domínio independente e migrations imutáveis com checksum SHA-256;
 - ADR 0005 — `ACCEPTED`; sessão opaca persistida no servidor, sem refresh token na aplicação web inicial;
-- ADR 0006 — `ACCEPTED`; identidade global, membership multiempresa, RBAC e isolamento em profundidade, com a forma de implementação da RLS condicionada a spike PostgreSQL.
+- ADR 0006 — `ACCEPTED`; identidade global, membership multiempresa, RBAC e isolamento em profundidade; o spike PostgreSQL recomendou uma mecânica concreta de RLS, ainda sujeita a aceite humano.
 
 ### 4.4 Decisões humanas registradas em 2026-07-18
 
@@ -81,7 +81,7 @@ Definir e, em execuções futuras explicitamente autorizadas, entregar de forma 
 - ausência de bypass implícito de tenant para `superadmin`;
 - SQLite não constitui evidência suficiente de isolamento multiempresa;
 - SPEC 002 mantida em `EM_ESPECIFICACAO`;
-- SPEC 002-A bloqueada até concluir os spikes de persistência e RLS;
+- SPEC 002-A bloqueada até revisão humana do spike de RLS, resolução dos demais gates e autorização explícita;
 - SPEC 003 mantida bloqueada.
 
 ## 5. Atores
@@ -584,11 +584,17 @@ Regras:
 
 - chaves únicas e foreign keys compostas evitam relações entre tenants;
 - role de runtime não é owner e não possui `BYPASSRLS`;
-- tabelas tenant-owned usam RLS como defesa em profundidade após spike aprovado;
-- contexto é definido com `SET LOCAL` dentro de transação e limpo pelo encerramento;
+- tabelas tenant-owned usam `ENABLE` e `FORCE ROW LEVEL SECURITY` como defesa em profundidade após aceite humano da evidência;
+- contexto é definido com `set_config('app.current_company_id', companyId, true)` dentro de transação e limpo por commit ou rollback;
 - policies negam acesso quando o contexto estiver ausente ou inválido;
 - testes usam a mesma role de runtime da aplicação;
 - SQLite não substitui esses testes.
+
+O spike descartável em `spikes/postgres-rls`, documentado em
+`docs/qa/spikes/spec-002-postgres-rls.md`, comprovou tecnicamente esse mecanismo
+com pool, reuso da mesma conexão, 40 transações concorrentes, IDOR, filtros
+independentes no repository e separação entre os planos de tenant e plataforma.
+O resultado não substitui autorização da aplicação nem libera implementação.
 
 ### 17.3 Semântica externa
 
@@ -599,7 +605,7 @@ Regras:
 
 ## 18. Persistência e migrations propostas
 
-Esta seção descreve intenção. **Nenhum arquivo de migration é criado nesta execução.** Nomes e ordem final dependem do aceite da ADR 0004 e do spike PostgreSQL.
+Esta seção descreve intenção. **Nenhuma migration definitiva foi criada.** As migrations experimentais do spike usam somente objetos `spike_rls_*`, foram revertidas e não definem nomes ou ordem do schema real.
 
 ### 18.1 Incremento 002-A — identidade
 
@@ -839,10 +845,11 @@ Com empresas A e B, usuários distintos e um usuário com duas memberships:
 
 ### 22.1 Gate documental para `PRONTA_PARA_IMPLEMENTAR`
 
-- [ ] ADR 0004 aceita ou substituída após spike.
+- [x] ADR 0004 aceita após spike com Kysely e decisão humana.
 - [x] ADR 0005 aceita por decisão humana em 2026-07-18.
 - [x] ADR 0006 aceita por decisão humana em 2026-07-18.
-- [ ] Spikes de persistência com Kysely e de implementação da RLS concluídos e aprovados no PostgreSQL 14.
+- [x] Spike de persistência com Kysely concluído e aceito no PostgreSQL 14.
+- [ ] Spike de RLS concluído tecnicamente no PostgreSQL 14; revisão e aceite humano da mecânica pendentes.
 - [x] Associação multiempresa por `Membership` e empresa ativa validada no servidor aprovadas.
 - [ ] Matriz inicial de permissões e delegação aprovada.
 - [x] `superadmin` separado dos papéis empresariais e sem bypass implícito de tenant.
@@ -878,7 +885,7 @@ Com empresas A e B, usuários distintos e um usuário com duas memberships:
 
 Nenhum rollout é autorizado por esta revisão. Quando houver autorização futura:
 
-1. aceitar a ADR 0004 e definir a implementação da RLS após concluir os spikes autorizados no PostgreSQL 14 local;
+1. registrar o aceite humano da mecânica de RLS após revisar o spike já concluído no PostgreSQL 14 local;
 2. entregar e validar 002-A a 002-G sequencialmente;
 3. aplicar migrations por estratégia expandir/backfill/validar/contrair em ambiente não produtivo;
 4. criar catálogo de permissões por seed determinística;
@@ -908,9 +915,9 @@ Não haverá sincronização silenciosa de credenciais do legado nem conexão co
 
 | Tema | Decisão | Efeito |
 |---|---|---|
-| ADR 0004 | permanece `PROPOSED` até spike com Kysely | bloqueia a SPEC 002-A |
+| ADR 0004 | `ACCEPTED` após spike com Kysely | estratégia de persistência definida; não autoriza a SPEC 002-A |
 | ADR 0005 | `ACCEPTED` | sessão opaca sem refresh token passa a ser decisão arquitetural |
-| ADR 0006 | `ACCEPTED` | modelo multiempresa/RBAC passa a ser decisão arquitetural; mecânica de RLS ainda depende de spike |
+| ADR 0006 | `ACCEPTED` | modelo multiempresa/RBAC é decisão arquitetural; mecânica de RLS possui evidência técnica e aguarda aceite humano |
 | Usuário e empresa | associação muitos-para-muitos por `Membership` | encerra `DEC-002-002` quanto à cardinalidade |
 | Empresa ativa | determinada e validada no servidor | nenhum `companyId` do cliente concede contexto |
 | Papéis | `superadmin` global separado de `admin`/`staff` empresariais | planos de plataforma e tenant permanecem distintos |
@@ -923,9 +930,8 @@ Não haverá sincronização silenciosa de credenciais do legado nem conexão co
 
 | ID | Criticidade | Dúvida/decisão | Recomendação atual | Gate |
 |---|---|---|---|---|
-| DEC-002-001 | Crítica | query builder e migrator | aceitar Kysely condicionado ao spike da ADR 0004 | 002-A |
 | DEC-002-004 | Crítica | matriz e delegação de permissões | negação por padrão já foi aceita; aprovar códigos, ações e capacidade delegável | 002-D |
-| DEC-002-005 | Crítica | implementação da RLS com pool/query builder | executar spike no PostgreSQL 14; `SET LOCAL` é candidato, não decisão fechada | 002-A/G |
+| DEC-002-005 | Crítica | implementação da RLS com pool/query builder | revisar e aceitar a recomendação do spike PostgreSQL: role não-owner/`NOBYPASSRLS`, `ENABLE` + `FORCE`, `set_config(..., true)` transacional e filtros nos repositories | 002-A/G |
 | DEC-002-006 | Crítica | MFA de `superadmin` | exigir MFA antes de uso administrativo; tecnologia a decidir | 002-E |
 | DEC-002-007 | Alta | sessão | aceitar 30 min ociosa/12 h absoluta ou definir outros valores | 002-B |
 | DEC-002-008 | Alta | política de senha | aceitar baseline NIST/Argon2id e benchmark | 002-B |
@@ -944,7 +950,7 @@ Não haverá sincronização silenciosa de credenciais do legado nem conexão co
 | Risco | Impacto | Mitigação proposta |
 |---|---|---|
 | filtro de tenant esquecido | vazamento crítico | `TenantContext` obrigatório, FK composta, RLS e testes negativos |
-| RLS mal configurada no pool | vazamento entre requisições | transação + `SET LOCAL`, role sem bypass e spike concorrente |
+| RLS mal configurada no pool | vazamento entre requisições | mecânica validada no spike, transação + configuração local, role sem bypass e fitness functions concorrentes |
 | claims/permissões obsoletas | elevação após revogação | sessão servidor, versão de autorização e invalidação imediata |
 | `superadmin` virar bypass universal | acesso indevido a clientes | planos e repositories separados, sem contexto nulo/sentinela |
 | enumeração por login/reset | descoberta de contas | resposta/tempo genéricos, dummy hash e rate limit |
@@ -958,4 +964,4 @@ Não haverá sincronização silenciosa de credenciais do legado nem conexão co
 
 ## 27. Estado de prontidão e próximo gate
 
-A decomposição A–G, o modelo e os contratos estão suficientemente detalhados para decisão arquitetural, mas **não para implementação**. As ADRs 0005 e 0006 foram aceitas; a ADR 0004 permanece proposta. O próximo gate técnico é concluir, em execução separada e explicitamente autorizada, os spikes de persistência com Kysely e de implementação da RLS no PostgreSQL 14. A SPEC 002-A e a SPEC 003 permanecem bloqueadas, e a spec ativa não deve avançar automaticamente.
+A decomposição A–G, o modelo e os contratos estão suficientemente detalhados para decisão arquitetural, mas **não para implementação**. As ADRs 0004, 0005 e 0006 foram aceitas. Os spikes de persistência e RLS foram concluídos no PostgreSQL 14; o resultado de RLS aguarda revisão humana e registro da mecânica na ADR 0006. Os demais gates críticos continuam abertos. A SPEC 002-A e a SPEC 003 permanecem bloqueadas, e a spec ativa não deve avançar automaticamente.

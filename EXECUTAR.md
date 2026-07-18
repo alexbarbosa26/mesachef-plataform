@@ -41,8 +41,8 @@ O agente não deve iniciar a próxima spec automaticamente apenas porque termino
 project: MesaChef Platform
 method: SDD
 architecture: modular-monolith
-current_spec: "000"
-execution_mode: documentation
+current_spec: "001"
+execution_mode: implementation
 auto_advance: false
 auto_commit: false
 auto_push: false
@@ -98,8 +98,8 @@ docs/skills/security
 
 | Ordem | Arquivo | Nome | Dependências | Estado |
 |---:|---|---|---|---|
-| 000 | `docs/sdd/000-visao-produto.md` | Visão do produto e escopo da reconstrução | Nenhuma | EM_VALIDACAO |
-| 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | BLOQUEADA |
+| 000 | `docs/sdd/000-visao-produto.md` | Visão do produto e escopo da reconstrução | Nenhuma | CONCLUIDA |
+| 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | PRONTA_PARA_IMPLEMENTAR |
 | 002 | `docs/sdd/002-identity-access-multiempresa.md` | Autenticação, autorização e multiempresa | 001 | BLOQUEADA |
 | 003 | `docs/sdd/003-layout-navegacao.md` | Layout, navegação e design system | 001 e contratos iniciais da 002 | BLOQUEADA |
 | 004 | `docs/sdd/004-estoque.md` | Estoque e movimentações | 002 e 003 | BLOQUEADA |
@@ -128,11 +128,11 @@ Estados permitidos:
 
 ```yaml
 active_spec:
-  id: "000"
-  file: "docs/sdd/000-visao-produto.md"
-  state: "EM_VALIDACAO"
+  id: "001"
+  file: "docs/sdd/001-fundacao-projeto.md"
+  state: "PRONTA_PARA_IMPLEMENTAR"
   owner: "Alex"
-  objective: "Documentar a visão do produto, escopo, usuários, módulos e limites da reconstrução."
+  objective: "Criar a fundação técnica do monorepo."
 ```
 
 Para mudar a spec ativa, atualizar este bloco antes de iniciar a execução.

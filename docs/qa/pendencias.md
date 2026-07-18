@@ -3,9 +3,9 @@
 ## 1. Estado
 
 - **Atualização:** 2026-07-18
-- **Spec ativa:** 001 — Fundação técnica
-- **Estado da spec:** `CONCLUIDA`
-- **Próxima spec:** 002 permanece `BLOQUEADA` e não foi iniciada
+- **Spec ativa:** 002 — Identidade, Autorização e Multiempresa
+- **Estado da spec:** `EM_ESPECIFICACAO`; não pronta para implementação
+- **Próxima spec:** 003 permanece `BLOQUEADA` e não foi iniciada
 
 Este registro concentra conflitos, lacunas de decisão e hipóteses encontradas na leitura das especificações, ADRs e do projeto de referência. Nenhum item deve ser resolvido por suposição silenciosa. A prioridade indica risco para decisões futuras, não autorização para avançar de spec.
 
@@ -137,8 +137,91 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 ### PEND-001-003 — ORM ou query builder
 
-- **Prioridade:** Média.
+- **Prioridade:** Alta para o início da SPEC 002; encaminhada, ainda não decidida.
 - **Descrição:** não existe schema, repository ou caso de persistência de negócio na SPEC 001.
 - **Impacto:** escolher uma ferramenta agora criaria compromisso sem evidência suficiente.
-- **Recomendação:** criar ADR na primeira spec que introduzir persistência e comparar suporte a PostgreSQL, testes auxiliares SQLite, migrations, tipagem e operação.
-- **Decisão necessária:** adiada de forma explícita; a fundação usa somente probes de conectividade.
+- **Encaminhamento em 2026-07-18:** a ADR 0004 compara Drizzle, Prisma, Kysely e SQL explícito com repositories e recomenda Kysely condicionado a spike no PostgreSQL 14.
+- **Recomendação:** aceitar ou substituir a ADR 0004 somente após comprovar migration, transação, constraint composta, tenant query, tipos e adapter SQLite auxiliar.
+- **Decisão necessária:** escolha formal da estratégia e do migrator antes do incremento 002-A. A fundação continua usando somente probes de conectividade.
+
+## 8. Pendências da SPEC 002
+
+### PEND-002-001 — Estratégia de persistência e migrations
+
+- **Prioridade:** Crítica.
+- **Status:** aberta; ADR 0004 em `PROPOSED`.
+- **Descrição:** a SPEC 002 introduzirá a primeira persistência de negócio, mas query builder, migrator e manutenção dos tipos de tabela ainda não foram aceitos.
+- **Impacto:** bloqueia schema, repositories e migrations do incremento 002-A.
+- **Evidência:** `docs/adr/0004-estrategia-persistencia-query-builder.md` e `docs/sdd/002-identity-access-multiempresa.md`, seções 18, 20 e 25.
+- **Recomendação:** Kysely sobre `pg`, migrations explícitas/versionadas e domínio isolado, condicionado a spike no PostgreSQL 14.
+- **Decisão necessária:** aceitar, rejeitar ou substituir a ADR 0004 e definir geração/manutenção dos tipos.
+
+### PEND-002-002 — Associação multiempresa e empresa ativa
+
+- **Prioridade:** Crítica.
+- **Status:** aberta; ADR 0006 em `PROPOSED`.
+- **Descrição:** o legado associa perfil a uma empresa, enquanto a proposta usa identidade global com várias memberships e empresa ativa na sessão.
+- **Impacto:** define schema, login, navegação, autorização, migração futura e comportamento quando há zero, uma ou várias empresas.
+- **Evidência:** inventário em `docs/migration`; ADR 0006; SPEC 002, seções 9, 10 e 20-C.
+- **Recomendação:** permitir várias memberships, selecionar automaticamente somente quando houver uma ativa e exigir escolha quando houver mais de uma.
+- **Decisão necessária:** aprovação de produto e arquitetura para o modelo e o fluxo de seleção.
+
+### PEND-002-003 — Matriz RBAC e limites de superadmin
+
+- **Prioridade:** Crítica.
+- **Status:** aberta; relacionada ao `BLOQUEIO-20260718-002` e à ADR 0006.
+- **Descrição:** faltam códigos finais de permissão, capacidade delegável, decisão sobre papéis customizados e regra de acesso operacional de `superadmin`.
+- **Impacto:** sem matriz explícita não é seguro implementar administração, menu, guards ou endpoints.
+- **Evidência:** `docs/sdd/002-identity-access-multiempresa.md`, seções 12, 14 e 25; inconsistências do legado em `docs/migration/mapa-telas-rotas.md`.
+- **Recomendação:** negação por padrão; `admin`/`staff` por membership; `superadmin` apenas no plano da plataforma e sem acesso implícito a dados de cliente; modelo suporta papel customizado, mas exposição é adiada.
+- **Decisão necessária:** aprovar matriz `papel × recurso × ação`, delegação e eventual fluxo de suporte.
+
+### PEND-002-004 — Política de autenticação, MFA e bootstrap
+
+- **Prioridade:** Crítica.
+- **Status:** aberta; ADR 0005 em `PROPOSED`.
+- **Descrição:** sessão opaca é recomendada, mas TTL, parâmetros Argon2id, política de senha, MFA administrativo e canal de bootstrap ainda exigem aceite/benchmark.
+- **Impacto:** bloqueia autenticação, sessões e criação segura do primeiro superadmin.
+- **Evidência:** ADR 0005 e SPEC 002, seções 13, 15, 16 e 25.
+- **Recomendação:** sessão opaca sem refresh token, 30 minutos de inatividade/12 horas absolutas como baseline, Argon2id e MFA obrigatório para `superadmin`.
+- **Decisão necessária:** aprovar parâmetros, tecnologia MFA e fluxo de ativação fora de banda.
+
+### PEND-002-005 — Entrega de recuperação e ativação
+
+- **Prioridade:** Alta.
+- **Status:** aberta.
+- **Descrição:** não há provedor de e-mail, domínio confiável de links, tratamento de bounce ou runbook de falha aprovado.
+- **Impacto:** impede concluir recuperação de senha e ativação sem improvisar integração ou segredo.
+- **Evidência:** ADR 0005 e SPEC 002, seções 14.2, 15.4 e 25.
+- **Recomendação:** escolher provedor atrás de porta/adaptador, usar origem configurada, token de uso único e resposta genérica.
+- **Decisão necessária:** provedor, remetente, domínio, templates, retenção e suporte.
+
+### PEND-002-006 — RLS e contexto de tenant no pool
+
+- **Prioridade:** Crítica.
+- **Status:** aberta; spike obrigatório.
+- **Descrição:** RLS foi proposta como defesa em profundidade, mas `SET LOCAL`, role de runtime, pool e query builder ainda não foram comprovados em concorrência.
+- **Impacto:** configuração incorreta pode manter contexto entre requisições ou criar falsa garantia de isolamento.
+- **Evidência:** ADR 0006 e SPEC 002, seções 17, 18.6 e 21.3.
+- **Recomendação:** spike no PostgreSQL 14 com role sem owner/`BYPASSRLS`, transações concorrentes, contexto ausente/inválido e reuso de conexão.
+- **Decisão necessária:** aceitar policies e padrão de transação somente após evidência reproduzível.
+
+### PEND-002-007 — Retenção e privacidade da auditoria
+
+- **Prioridade:** Alta.
+- **Status:** aberta; relacionada a `PEND-000-013`.
+- **Descrição:** eventos mínimos foram propostos, mas retenção, acesso, exportação, imutabilidade operacional e tratamento de dados pessoais não foram aprovados.
+- **Impacto:** pode produzir registro excessivo, insuficiente ou incompatível com obrigações de privacidade.
+- **Evidência:** `docs/sdd/002-identity-access-multiempresa.md`, seções 9.9, 19 e 25.
+- **Recomendação:** allowlist de metadados, escopo explícito, acesso mínimo e retenção definida antes do incremento 002-E.
+- **Decisão necessária:** política de retenção, responsáveis, consultas permitidas e processo de atendimento ao titular.
+
+### PEND-002-008 — Normalização e alteração de e-mail
+
+- **Prioridade:** Alta.
+- **Status:** aberta.
+- **Descrição:** a unicidade depende de uma normalização global estável, mas não foram decididos Unicode, case folding, alteração de endereço e revalidação.
+- **Impacto:** risco de contas duplicadas, bloqueio indevido ou tomada de conta durante mudança de e-mail.
+- **Evidência:** SPEC 002, invariantes e `DEC-002-013`.
+- **Recomendação:** definir algoritmo único antes da primeira migration e tratar mudança como operação verificada, auditada e revogadora de sessões quando aplicável.
+- **Decisão necessária:** regra canônica e fluxo de alteração.

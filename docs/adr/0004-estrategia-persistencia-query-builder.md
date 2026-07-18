@@ -4,9 +4,18 @@
 
 PROPOSED
 
+Mantida em `PROPOSED` por decisão humana registrada em 2026-07-18. Kysely é a tecnologia candidata do spike, não uma dependência autorizada nem uma decisão aceita antes das evidências técnicas.
+
 ## Data
 
 2026-07-18
+
+## Registro da decisão humana
+
+- **Decisor:** responsável do projeto, por instrução explícita desta execução.
+- **Decisão:** manter esta ADR em `PROPOSED` até concluir e revisar um spike técnico com Kysely no PostgreSQL 14.
+- **Efeito:** a recomendação abaixo orienta o spike, mas não autoriza instalar Kysely, criar migrations ou iniciar a SPEC 002-A.
+- **Gate:** a mudança para `ACCEPTED` exige evidência reproduzível dos critérios desta ADR e decisão humana posterior.
 
 ## Contexto
 
@@ -122,7 +131,7 @@ Esta ADR não define o schema físico da SPEC 002 e não autoriza instalar depen
 | Lock-in | médio | médio/alto | baixo | mínimo |
 | Adequação à equipe pequena | boa | boa, porém mais pesada | boa se houver domínio de SQL | razoável, com maior custo repetitivo |
 
-## Recomendação
+## Decisão proposta
 
 Adotar **Kysely como query builder dentro de `packages/database`**, sobre o driver `pg` para PostgreSQL, com estas regras:
 
@@ -179,8 +188,7 @@ A recomendação favorece controle e baixo lock-in sem assumir o custo total de 
 
 ## Gates para aceitar esta ADR
 
-- aprovar a recomendação Kysely versus Drizzle;
-- executar um spike autorizado com PostgreSQL 14 para migration, transaction, constraint composta e tenant query;
+- concluir e revisar um spike autorizado com Kysely e PostgreSQL 14 para migration, transaction, constraint composta e tenant query;
 - demonstrar um adapter SQLite auxiliar sem duplicar regras de domínio;
 - definir a política de geração/manutenção dos tipos de tabela;
 - validar que o migrator detecta ordem e migration alterada.
@@ -205,7 +213,7 @@ A recomendação favorece controle e baixo lock-in sem assumir o custo total de 
 
 ## Questões abertas
 
-- A equipe aprova Kysely como recomendação ou prefere o schema TypeScript do Drizzle?
+- O spike confirma Kysely como escolha final ou exige revisar as alternativas desta ADR?
 - Os tipos de tabela serão mantidos manualmente ou gerados em CI?
 - Qual é a política operacional de rollback para migrations com transformação de dados?
 - O suporte SQLite continuará obrigatório após os primeiros módulos persistentes?

@@ -2,11 +2,20 @@
 
 ## Status
 
-PROPOSED
+ACCEPTED
 
 ## Data
 
 2026-07-18
+
+## Registro da decisão humana
+
+- **Decisor:** responsável do projeto, por instrução explícita desta execução.
+- **Decisão:** aceitar identidade global com associação muitos-para-muitos por `Membership`, empresa ativa determinada e validada no servidor, papéis globais separados dos empresariais e autorização com negação por padrão.
+- **Superadmin:** não existe bypass implícito de tenant; qualquer acesso empresarial exige contexto e autorização explícitos.
+- **Persistência:** SQLite pode apoiar desenvolvimento, mas não constitui evidência suficiente de isolamento multiempresa.
+- **RLS:** a defesa em profundidade com PostgreSQL foi aceita como direção arquitetural; a forma concreta de implementação depende de spike no PostgreSQL 14 antes da SPEC 002-A.
+- **Efeito:** esta ADR orienta implementações futuras, mas não autoriza criar policies, migrations, papéis de banco ou código nesta execução.
 
 ## Contexto
 
@@ -79,7 +88,7 @@ Esta alternativa é rejeitada.
 
 Esta é a alternativa recomendada.
 
-## Decisão proposta
+## Decisão
 
 Adotar identidade global, vínculo `Membership` muitos-para-muitos entre usuário e empresa, RBAC empresarial extensível e contexto de empresa ativa mantido na sessão do servidor.
 
@@ -187,7 +196,7 @@ Regras arquiteturais:
 
 ### PostgreSQL Row-Level Security como defesa em profundidade
 
-Além dos filtros obrigatórios em repository, propor RLS para tabelas tenant-owned no PostgreSQL 14:
+Além dos filtros obrigatórios em repository, adotar RLS como defesa em profundidade para tabelas tenant-owned no PostgreSQL 14. A mecânica abaixo é candidata e deve ser comprovada ou ajustada pelo spike:
 
 - role de runtime sem atributo `BYPASSRLS` e sem propriedade das tabelas;
 - `ENABLE ROW LEVEL SECURITY` e, quando adequado, `FORCE ROW LEVEL SECURITY`;
@@ -197,7 +206,7 @@ Além dos filtros obrigatórios em repository, propor RLS para tabelas tenant-ow
 - jobs multiempresa iteram tenants com contexto explícito, sem query irrestrita do plano empresarial;
 - testes executam com o mesmo papel de banco da aplicação.
 
-RLS não substitui autorização de ação, filtro nos repositories nem constraints. Antes de aceitar a ADR, um spike precisa provar que o mecanismo é seguro com o pool e o query builder escolhidos. SQLite não suporta essa validação e não é gate de isolamento.
+RLS não substitui autorização de ação, filtro nos repositories nem constraints. Antes da implementação da SPEC 002-A, um spike precisa provar qual mecanismo é seguro com o pool e o query builder escolhidos. SQLite não suporta essa validação e não é gate de isolamento.
 
 ### Invariantes administrativas
 
@@ -251,11 +260,10 @@ O evento contém ator, plano, empresa quando aplicável, ação, alvo, resultado
 - testar que respostas não revelam existência de recurso de outro tenant;
 - testar que alteração de autorização invalida cache e sessão conforme definido.
 
-## Gates para aceitar esta ADR
+## Condições antes da implementação
 
-- aprovar que um usuário pode pertencer a várias empresas;
-- aprovar separação entre `superadmin` e papéis de membership;
-- aprovar ausência de acesso operacional implícito para `superadmin`;
+- preservar associação muitos-para-muitos por `Membership`, empresa ativa validada no servidor e separação entre `superadmin` e papéis de membership;
+- preservar negação por padrão e ausência de acesso operacional implícito para `superadmin`;
 - aprovar matriz inicial de permissões e capacidade, ou não, de papéis customizados;
 - concluir spike de RLS com pool, transação, PostgreSQL 14 e Kysely/alternativa escolhida;
 - definir comportamento quando a empresa perde o último admin;
@@ -281,8 +289,8 @@ O evento contém ator, plano, empresa quando aplicável, ação, alvo, resultado
 
 ## Questões abertas
 
-- A associação multiempresa e a seleção automática quando houver uma única membership estão aprovadas?
-- `superadmin` poderá iniciar acesso de suporte temporário aos dados de uma empresa? Em caso afirmativo, sob quais controles?
+- A seleção será automática quando houver exatamente uma membership ativa ou sempre explícita?
+- Será criado futuramente um fluxo explícito de suporte temporário para `superadmin`? Em caso afirmativo, exigirá ADR própria e não poderá reutilizar bypass implícito.
 - Papéis customizados serão expostos na SPEC 002 ou apenas suportados pelo modelo?
 - Qual é a matriz exata de permissões de `admin` e `staff` neste incremento?
 - Qual retenção, acesso e exportação serão exigidos para auditoria?

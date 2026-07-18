@@ -542,7 +542,11 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 - [x] Propor ADR de isolamento multiempresa e RBAC.
 - [x] Registrar migrations conceituais e testes obrigatórios sem criar migrations físicas.
 - [x] Registrar decisões críticas e manter a SPEC como `EM_ESPECIFICACAO`.
-- [ ] Aceitar ou substituir as ADRs 0004, 0005 e 0006.
+- [x] Aceitar a ADR 0005 — autenticação, sessões e tokens.
+- [x] Aceitar a ADR 0006 — isolamento multiempresa e RBAC, mantendo a implementação da RLS condicionada a spike.
+- [x] Aprovar `Membership` muitos-para-muitos, empresa ativa no servidor, separação de `superadmin`, negação por padrão e ausência de bypass implícito.
+- [ ] Concluir o spike com Kysely e aceitar, rejeitar ou substituir a ADR 0004.
+- [ ] Concluir o spike PostgreSQL e decidir a forma de implementação da RLS.
 - [ ] Resolver as decisões críticas da SPEC 002.
 - [ ] Autorizar explicitamente o primeiro incremento de implementação.
 
@@ -556,14 +560,16 @@ last_execution:
   spec: "002"
   mode: "documentation"
   status: "EM_ESPECIFICACAO"
-  summary: "SPEC 002 refinada tecnicamente e dividida em 002-A a 002-G; ADRs 0004, 0005 e 0006 propostas, sem código, migrations, banco, interface, commit ou produção. A spec não está pronta para implementação."
+  summary: "Decisões humanas registradas: ADR 0005 e ADR 0006 aceitas; ADR 0004 mantida proposta; Membership multiempresa, contexto ativo no servidor, papéis globais separados, negação por padrão e ausência de bypass implícito aprovados. Sem código, migrations, dependências, banco, interface, commit ou produção."
   tests:
     - "Testes de aplicação, lint, typecheck e build: N/A nesta execução exclusivamente documental, sem mudança de código ou configuração."
-    - "Validação estática: estrutura obrigatória da SPEC, rastreabilidade dos 26 tópicos, incrementos A-G, status das ADRs e escopo documental."
-    - "Auditoria do diff e de secrets registrada em docs/qa/evidencias/spec-002.md."
+    - "Validação estática: estados das ADRs, decisões humanas, bloqueios da 002-A/003, escopo documental e ausência de migrations."
+    - "Auditoria do diff e de secrets registrada em docs/qa/evidencias/spec-002.md, seção 14."
   blockers:
-    - "PEND-002-001 a PEND-002-008: decisões de persistência, tenancy, RBAC, sessão/MFA/bootstrap, recuperação, RLS, auditoria e e-mail."
-  next_recommended_action: "Revisar e decidir as ADRs 0004, 0005 e 0006 e as decisões críticas da SPEC 002; manter a SPEC 003 bloqueada e não iniciar implementação sem nova autorização explícita."
+    - "PEND-002-001: ADR 0004 depende de spike de persistência com Kysely."
+    - "PEND-002-006: forma de implementação da RLS depende de spike no PostgreSQL 14."
+    - "Matriz/delegação RBAC, MFA/bootstrap, recuperação, auditoria e normalização de e-mail continuam abertas."
+  next_recommended_action: "Autorizar separadamente o spike técnico de persistência com Kysely no PostgreSQL 14; depois executar o spike de RLS com a stack validada. Manter a SPEC 002-A e a SPEC 003 bloqueadas até ambos terminarem."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

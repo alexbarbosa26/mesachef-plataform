@@ -3,6 +3,7 @@
 ## 1. Identificação
 
 - **Data:** 2026-07-18
+- **Atualização decisória:** 2026-07-18 — aceite das ADRs 0005/0006 e registro dos gates técnicos remanescentes
 - **Branch observada:** `docs/spec-002-identity-design`
 - **Modo:** `documentation`
 - **Spec autorizada:** 002
@@ -91,10 +92,10 @@ Esses itens foram tratados como evidência de comportamento ou risco. Nenhum có
 | ADR | Status | Recomendação condicionada |
 |---|---|---|
 | 0004 — persistência/query builder | `PROPOSED` | Kysely sobre `pg`, repositories e migrations explícitas/versionadas |
-| 0005 — autenticação/sessões/tokens | `PROPOSED` | sessão opaca revogável no servidor e nenhum refresh token para a web inicial |
-| 0006 — isolamento/RBAC | `PROPOSED` | identidade global, memberships multiempresa, contextos separados e RLS em profundidade |
+| 0005 — autenticação/sessões/tokens | `ACCEPTED` | sessão opaca revogável no servidor e nenhum refresh token para a web inicial |
+| 0006 — isolamento/RBAC | `ACCEPTED` | identidade global, memberships multiempresa, contextos separados e RLS em profundidade; mecânica de RLS depende de spike |
 
-Nenhuma ADR foi marcada `ACCEPTED` sem decisão do responsável.
+As ADRs 0005 e 0006 foram marcadas `ACCEPTED` somente após decisão humana explícita do responsável em 2026-07-18. A ADR 0004 permanece `PROPOSED` até evidência do spike com Kysely.
 
 ## 8. Incrementos especificados
 
@@ -134,10 +135,9 @@ Os comandos e resultados finais de validação estática devem ser registrados n
 
 A SPEC continua não pronta porque ainda dependem de decisão:
 
-- aceite da estratégia de persistência e spike;
-- modelo multiempresa e empresa ativa;
-- matriz RBAC/delegação e limite de `superadmin`;
-- RLS com pool e role real;
+- aceite da estratégia de persistência após spike com Kysely;
+- matriz RBAC detalhada, delegação e papéis customizados;
+- implementação da RLS com pool e role real após spike PostgreSQL;
 - MFA, TTL, senha e bootstrap;
 - provedor de recuperação;
 - retenção/privacidade da auditoria;
@@ -145,7 +145,7 @@ A SPEC continua não pronta porque ainda dependem de decisão:
 
 As pendências detalhadas estão em `docs/qa/pendencias.md`, seção 8.
 
-## 12. Resultado das validações estáticas
+## 12. Resultado das validações estáticas do refinamento inicial
 
 - `git diff --check`: passou, sem erro de whitespace no diff rastreado; o Git apenas informou a conversão configurada de LF para CRLF no Windows.
 - escopo de arquivos: passou; exatamente 8 arquivos documentais, todos na allowlist desta execução.
@@ -155,8 +155,49 @@ As pendências detalhadas estão em `docs/qa/pendencias.md`, seção 8.
 - incrementos: 002-A, B, C, D, E, F e G encontrados com os nomes exigidos.
 - controlador: SPEC ativa 002 em `EM_ESPECIFICACAO`, modo `documentation`; SPEC 003 permanece `BLOQUEADA`.
 - ADR 0004: Drizzle, Prisma, Kysely e SQL explícito presentes na comparação.
-- ADRs 0004–0006: todas permanecem `PROPOSED`.
+- ADRs 0004–0006: naquela execução inicial, todas permaneciam `PROPOSED`; o registro humano posterior está na seção 13.
 - Markdown: nenhum whitespace final e code fences balanceados nos 8 arquivos.
 - secrets: nenhuma chave privada, access key AWS, token GitHub/Slack, JWT ou URI de banco com credencial encontrada nos 8 arquivos alterados/criados.
 
 **Resultado:** documentação consistente com o escopo autorizado. Não houve execução de código de aplicação, testes de runtime, banco, Docker, migration, commit ou produção.
+
+## 13. Decisões humanas registradas — 2026-07-18
+
+| # | Decisão | Registro resultante |
+|---:|---|---|
+| 1 | ADR 0004 permanece `PROPOSED` até spike com Kysely | Kysely é candidato do spike; SPEC 002-A bloqueada |
+| 2 | ADR 0005 aceita | status `ACCEPTED`; sessão opaca sem refresh token |
+| 3 | ADR 0006 aceita, com RLS dependente de spike | status `ACCEPTED`; implementação ainda não selecionada |
+| 4 | usuário–empresa muitos-para-muitos | `Membership` é o vínculo oficial |
+| 5 | empresa ativa no servidor | contexto derivado e validado pelo backend |
+| 6 | `superadmin` separado | papel global fora dos papéis empresariais |
+| 7 | negação por padrão | ausência de concessão falha fechada |
+| 8 | sem bypass implícito para `superadmin` | acesso tenant exige contexto/autorização explícitos |
+| 9 | SQLite insuficiente para isolamento | PostgreSQL 14 é o gate de evidência |
+| 10 | SPEC 002 continua em especificação | estado mantido em `EM_ESPECIFICACAO` |
+| 11 | SPEC 002-A bloqueada | depende dos spikes de persistência e RLS |
+| 12 | SPEC 003 bloqueada | nenhuma liberação ou avanço realizado |
+
+### Pendências afetadas
+
+- `PEND-002-002`: encerrada quanto à cardinalidade e autoridade da empresa ativa;
+- `PEND-002-003`: parcialmente resolvida; matriz detalhada/delegação continuam abertas;
+- `PEND-002-004`: parcialmente resolvida; estratégia de sessão aceita, parâmetros operacionais continuam abertos;
+- `PEND-002-001` e `PEND-002-006`: permanecem bloqueadoras da SPEC 002-A;
+- `PEND-002-005`, `PEND-002-007` e `PEND-002-008`: permanecem abertas.
+
+## 14. Validação da atualização decisória
+
+- `git diff --check`: passou; apenas avisos esperados de normalização LF/CRLF no Windows.
+- escopo: exatamente 8 arquivos documentais alterados; nenhum arquivo em `apps`, `packages`, `infra`, `scripts`, manifest ou lockfile.
+- ADR 0004: `PROPOSED` e condicionada a spike com Kysely.
+- ADR 0005: `ACCEPTED` e seção `Decisão` definitiva.
+- ADR 0006: `ACCEPTED`, com as decisões de membership, contexto no servidor, separação de papéis, negação por padrão, ausência de bypass e gate PostgreSQL registradas.
+- bloqueios: SPEC 002-A depende explicitamente dos spikes de persistência e RLS; SPEC 003 permanece `BLOQUEADA`.
+- Kysely: nenhuma ocorrência de dependência instalada em `package.json` ou `pnpm-lock.yaml`.
+- migrations: nenhum arquivo criado ou alterado.
+- Markdown: sem whitespace final e com code fences balanceados nos 8 arquivos.
+- secrets: nenhum padrão de chave privada, AWS, GitHub, Slack, JWT ou URI de banco com credencial encontrado no diff documental.
+- testes de aplicação, lint, typecheck e build: `N/A`, pois não houve mudança em código ou configuração executável.
+
+**Resultado:** as 12 decisões humanas foram registradas sem implementar, instalar dependências, acessar banco/produção, criar migration, avançar de spec ou criar commit.

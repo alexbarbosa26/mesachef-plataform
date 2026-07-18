@@ -2,11 +2,18 @@
 
 ## Status
 
-PROPOSED
+ACCEPTED
 
 ## Data
 
 2026-07-18
+
+## Registro da decisão humana
+
+- **Decisor:** responsável do projeto, por instrução explícita desta execução.
+- **Decisão:** aceitar sessão opaca persistida no servidor para a aplicação web inicial, sem refresh token, com expiração, rotação e revogação centralizadas.
+- **Efeito:** esta ADR passa a orientar implementações futuras da autenticação, sem autorizar implementação nesta execução.
+- **Limite:** TTLs finais, parâmetros Argon2id, MFA, provedor de recuperação e detalhes operacionais continuam sujeitos aos gates documentados abaixo.
 
 ## Contexto
 
@@ -73,7 +80,7 @@ O navegador recebe apenas um identificador aleatório em cookie; o servidor arma
 - estimula autorização baseada em claims antigas;
 - conflita com os requisitos de revogação e bloqueio da SPEC 002.
 
-## Decisão proposta
+## Decisão
 
 Adotar **sessão opaca persistida no servidor** para a aplicação web de primeira parte.
 
@@ -206,11 +213,11 @@ O canal de ativação e a exigência de MFA para superadmin precisam ser decidid
 - operações mutáveis autenticadas falham sem proteção CSRF válida;
 - empresa ativa inválida é removida da sessão e nunca aceita do payload como autoridade.
 
-## Gates para aceitar esta ADR
+## Condições antes da implementação
 
-- aprovar sessão opaca sem refresh token para a web;
-- aprovar TTL ocioso e absoluto;
-- aprovar política mínima de senha e parâmetros Argon2id após benchmark;
+- preservar sessão opaca sem refresh token para a aplicação web inicial;
+- definir os TTLs ocioso e absoluto;
+- validar a política mínima de senha e os parâmetros Argon2id após benchmark;
 - definir MFA obrigatório ou controle compensatório para superadmin;
 - definir canal de entrega da recuperação e ativação inicial;
 - validar estratégia de rate limiting para uma ou várias instâncias;

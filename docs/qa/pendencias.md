@@ -150,7 +150,9 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Resolução:** Kysely foi aceito como query builder e infraestrutura, com domínio independente, PostgreSQL 14 oficial, SQLite auxiliar e camada obrigatória de checksum SHA-256 sobre o migrator.
 - **Decisão humana original em 2026-07-18:** não aceitar a ADR 0004 antes da conclusão e revisão do spike com Kysely.
 - **Decisão humana posterior:** migrations aplicadas são imutáveis; correções usam novas migrations; nome e checksum são registrados em tabela auxiliar; divergência falha fechada; execução ocorre em etapa separada de deploy, nunca no startup da API.
-- **Decisão necessária:** nenhuma para escolha da estratégia. A implementação e seus testes dependem de autorização futura; o spike de RLS foi concluído, mas a SPEC 002-A continua bloqueada por sua revisão humana e pelos demais gates.
+- **Decisão necessária:** nenhuma para escolha da estratégia. A implementação e
+  seus testes dependem de autorização futura; o spike de RLS foi aceito, mas a
+  SPEC 002-A continua em especificação por seus gates próprios.
 
 ## 8. Pendências da SPEC 002
 
@@ -160,14 +162,18 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 |---|---|---|
 | ADR 0004 | `ACCEPTED`; Kysely, mapeamentos de tipos e checksum SHA-256 aprovados | PEND-002-001 encerrada |
 | ADR 0005 | `ACCEPTED` | PEND-002-004 parcialmente resolvida |
-| ADR 0006 | `ACCEPTED`; spike PostgreSQL de RLS concluído com recomendação favorável, aguardando aceite humano da mecânica | PEND-002-003 parcialmente resolvida e PEND-002-006 em revisão |
+| ADR 0006 | `ACCEPTED`; mecânica RLS do spike PostgreSQL aceita humanamente | PEND-002-003 parcialmente resolvida e PEND-002-006 encerrada |
 | Usuário–empresa | muitos-para-muitos por `Membership` | PEND-002-002 encerrada |
 | Empresa ativa | determinada e validada no servidor | PEND-002-002 encerrada quanto à autoridade do contexto |
 | Papéis | `superadmin` global separado de papéis empresariais | PEND-002-003 parcialmente resolvida |
 | Autorização | negação por padrão | PEND-002-003 parcialmente resolvida |
 | Superadmin | nenhum bypass implícito de tenant | PEND-002-003 parcialmente resolvida |
-| Evidência | SQLite não valida isolamento multiempresa | spike RLS validado somente no PostgreSQL 14; PEND-002-006 aguarda aceite humano |
-| Ordem | SPEC 002 em especificação; 002-A e 003 bloqueadas | `EXECUTAR.md` |
+| Evidência | SQLite não valida isolamento multiempresa | spike RLS validado somente no PostgreSQL 14; gate técnico encerrado |
+| RLS | role não-owner/`NOSUPERUSER`/`NOBYPASSRLS`, `ENABLE` + `FORCE`, `USING` + `WITH CHECK` e contexto local transacional | ADR 0006 e PEND-002-006 |
+| Separação de planos | contexts, pools, roles e repositories tenant/plataforma separados | ADR 0006; sem bypass implícito |
+| Operações globais | iterar tenants explicitamente ou usar caminho de plataforma separado e auditado | ADR 0006 |
+| Risco futuro | performance, PgBouncer e failover não comprovados | PEND-002-010, separada do gate encerrado |
+| Ordem | SPEC 002 e 002-A em especificação; 002-B–G e 003 bloqueadas | `EXECUTAR.md` |
 
 ### PEND-002-001 — Estratégia de persistência e migrations
 
@@ -178,7 +184,10 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Impacto resultante:** a estratégia de persistência não bloqueia mais a SPEC 002-A. Nenhuma dependência ou migration definitiva está autorizada por este encerramento.
 - **Evidência:** `docs/qa/spikes/spec-002-kysely-persistence.md`, ADR 0004 e `docs/qa/evidencias/spec-002.md`, seção 16.
 - **Fitness functions futuras:** impedir imports de Kysely no domínio; validar drift dos tipos; alterar migration aplicada deve falhar pelo checksum; API deve iniciar sem executar migrations; validações finais devem passar em PostgreSQL 14.
-- **Decisão humana registrada:** o aceite da ADR não libera implementação. O spike de RLS foi concluído depois desta decisão, mas a SPEC 002-A continua bloqueada até revisão humana e autorização explícita.
+- **Decisão humana registrada:** o aceite da ADR não libera implementação. O
+  spike de RLS foi posteriormente aceito; a SPEC 002-A continua em
+  especificação até resolver normalização de e-mail, checksum canônico,
+  tipos/drift e receber autorização explícita.
 - **Decisão necessária:** nenhuma para esta pendência; cumprir a ADR em execução futura autorizada.
 
 ### PEND-002-002 — Associação multiempresa e empresa ativa
@@ -226,15 +235,26 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 ### PEND-002-006 — RLS e contexto de tenant no pool
 
-- **Prioridade:** Crítica; evidência técnica concluída em 2026-07-18.
-- **Status:** em revisão humana; o spike PostgreSQL foi validado tecnicamente, mas a mecânica ainda não foi incorporada à ADR por decisão humana posterior.
+- **Prioridade:** resolvida em 2026-07-18 por decisão humana.
+- **Status:** encerrada quanto ao gate técnico de isolamento; ADR 0006 em
+  `ACCEPTED` com mecânica concreta registrada.
 - **Descrição original:** RLS foi aceita como direção de defesa em profundidade, mas `SET LOCAL` era apenas candidato; role de runtime, pool, query builder e concorrência ainda não tinham sido comprovados.
 - **Resultado técnico:** PostgreSQL 14.23 validou role runtime não-owner e sem `BYPASSRLS`, `ENABLE` + `FORCE RLS`, `set_config(..., true)` transacional, negação por padrão, CRUD isolado, pool após commit/rollback, 40 transações concorrentes A/B, IDOR, repositories com filtro independente, contextos separados e job global sem resíduo.
-- **Impacto resultante:** o gate técnico de isolamento possui evidência favorável. A SPEC 002-A não é liberada automaticamente: depende do aceite humano deste resultado, dos demais gates da spec e de autorização explícita.
+- **Decisão:** adotar RLS como defesa em profundidade, com `USING` e
+  `WITH CHECK`; role tenant distinta do owner, `NOSUPERUSER` e `NOBYPASSRLS`;
+  `TenantContext` local à transação; filtros obrigatórios nos repositories;
+  contexts/pools/roles tenant e plataforma separados; nenhum bypass implícito
+  de superadmin ou variável global de processo.
+- **Impacto resultante:** o gate técnico de isolamento não bloqueia mais a
+  002-A. A sub-spec não é liberada automaticamente: continua
+  `EM_ESPECIFICACAO` por outros gates e exige autorização explícita.
 - **Evidência:** `docs/qa/spikes/spec-002-postgres-rls.md`, ADR 0006 e SPEC 002, seções 17, 18.6 e 21.3.
-- **Decisões humanas registradas:** SQLite não é evidência suficiente; `superadmin` não possui bypass implícito; a forma de RLS depende de spike PostgreSQL.
-- **Recomendação:** aceitar a mecânica validada: role runtime não-owner/`NOBYPASSRLS`, `ENABLE` + `FORCE`, policy `USING`/`WITH CHECK`, contexto local por transação, filtros obrigatórios, planos tenant/plataforma separados e fitness functions PostgreSQL.
-- **Decisão necessária:** revisar o relatório, registrar a mecânica na ADR 0006 e decidir formalmente se esta pendência pode ser encerrada quanto ao isolamento.
+- **Risco preservado:** a credencial tenant permite solicitar `set_config` com
+  um UUID; deve ficar no backend confiável, que deriva e valida a empresa.
+- **Riscos fora da resolução:** performance, PgBouncer e failover estão em
+  `PEND-002-010` e não invalidam a evidência funcional do spike.
+- **Decisão necessária:** nenhuma para o gate técnico; repetir as fitness
+  functions no schema definitivo durante a 002-A.
 
 ### PEND-002-007 — Retenção e privacidade da auditoria
 
@@ -248,10 +268,50 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 ### PEND-002-008 — Normalização e alteração de e-mail
 
-- **Prioridade:** Alta.
-- **Status:** aberta.
+- **Prioridade:** Alta; bloqueadora da prontidão da 002-A.
+- **Status:** aberta; decisão necessária antes da primeira migration de usuário.
 - **Descrição:** a unicidade depende de uma normalização global estável, mas não foram decididos Unicode, case folding, alteração de endereço e revalidação.
 - **Impacto:** risco de contas duplicadas, bloqueio indevido ou tomada de conta durante mudança de e-mail.
 - **Evidência:** SPEC 002, invariantes e `DEC-002-013`.
 - **Recomendação:** definir algoritmo único antes da primeira migration e tratar mudança como operação verificada, auditada e revogadora de sessões quando aplicável.
 - **Decisão necessária:** regra canônica e fluxo de alteração.
+
+### PEND-002-009 — Checksum canônico e tipos de tabela
+
+- **Prioridade:** Crítica; bloqueadora da prontidão da 002-A.
+- **Status:** aberta.
+- **Descrição:** a ADR 0004 exige checksum SHA-256 e detecção de drift, mas
+  ainda não define a representação canônica/versionada que será hasheada nem se
+  os tipos de tabela serão mantidos manualmente, gerados ou introspectados.
+- **Impacto:** implementar sem decisão pode produzir checksums diferentes entre
+  ambientes, falsa detecção de adulteração ou drift silencioso entre schema e
+  TypeScript.
+- **Evidência:** ADR 0004, seções de migrations, fitness functions e questões
+  abertas; relatório do spike Kysely, riscos 1–3.
+- **Opções:** fonte TypeScript canônica normalizada com versão de formato;
+  artefato SQL determinístico; geração/introspecção em CI com comparação de
+  drift. A escolha deve permanecer confinada a `packages/database`.
+- **Recomendação:** executar uma decisão documental curta/prova automatizada
+  sobre duas máquinas/line endings, então registrar formato, algoritmo de
+  ordenação/encoding e comando de drift na ADR 0004/002-A.
+- **Decisão necessária:** representação de entrada do SHA-256, versão do formato
+  e estratégia verificável de tipos/drift.
+
+### PEND-002-010 — Performance RLS, PgBouncer e failover
+
+- **Prioridade:** Média nesta fase; gate futuro antes de topologia
+  pré-produtiva correspondente.
+- **Status:** aberta e deliberadamente separada do gate técnico encerrado em
+  `PEND-002-006`.
+- **Descrição:** o spike não mediu overhead/planos com schema e volume reais,
+  não usou PgBouncer e não simulou failover ou reconexão.
+- **Impacto:** uma topologia futura pode mudar pooling, lifecycle de transação,
+  latência ou recuperação de contexto. Isso não invalida o isolamento funcional
+  já comprovado no PostgreSQL 14 local.
+- **Evidência:** `docs/qa/spikes/spec-002-postgres-rls.md`, seção 15; ADR 0006,
+  questões abertas.
+- **Recomendação:** quando a topologia for definida, criar execução própria com
+  carga representativa, modo explícito de PgBouncer e failover que confirme
+  negação por padrão após reconexão.
+- **Decisão necessária:** SLO/budget de overhead, modo/configuração do pooler,
+  topologia de HA e critérios de recuperação segura.

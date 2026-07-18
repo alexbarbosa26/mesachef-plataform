@@ -10,12 +10,39 @@ ACCEPTED
 
 ## Registro da decisão humana
 
-- **Decisor:** responsável do projeto, por instrução explícita desta execução.
+- **Decisor:** responsável do projeto, por instruções explícitas em 2026-07-18.
 - **Decisão:** aceitar identidade global com associação muitos-para-muitos por `Membership`, empresa ativa determinada e validada no servidor, papéis globais separados dos empresariais e autorização com negação por padrão.
 - **Superadmin:** não existe bypass implícito de tenant; qualquer acesso empresarial exige contexto e autorização explícitos.
 - **Persistência:** SQLite pode apoiar desenvolvimento, mas não constitui evidência suficiente de isolamento multiempresa.
-- **RLS:** a defesa em profundidade com PostgreSQL foi aceita como direção arquitetural; a forma concreta de implementação depende de spike no PostgreSQL 14 antes da SPEC 002-A.
-- **Efeito:** esta ADR orienta implementações futuras, mas não autoriza criar policies, migrations, papéis de banco ou código nesta execução.
+- **RLS:** a defesa em profundidade e sua mecânica concreta foram aceitas após o spike PostgreSQL 14 documentado em `docs/qa/spikes/spec-002-postgres-rls.md`.
+- **Efeito:** o gate técnico de RLS foi encerrado. Esta ADR orienta implementações futuras, mas não autoriza criar policies, migrations, papéis de banco ou código nesta execução.
+
+## Aceite humano pós-spike PostgreSQL RLS
+
+As decisões abaixo substituem o caráter candidato da mecânica de RLS, sem
+generalizar a evidência para produção ou para cenários não testados:
+
+1. PostgreSQL RLS é defesa em profundidade e não substitui RBAC nem autorização da aplicação.
+2. Toda tabela tenant-owned usa `ENABLE ROW LEVEL SECURITY` e `FORCE ROW LEVEL SECURITY`.
+3. A role comum da aplicação é diferente do owner, `NOSUPERUSER` e `NOBYPASSRLS`.
+4. O contexto da empresa é definido somente dentro de transação com operação equivalente a `set_config('app.current_company_id', companyId, true)`.
+5. Contexto ausente ou inválido resulta em negação por padrão ou falha sanitizada.
+6. Policies tenant-owned aplicam expressões equivalentes em `USING` e `WITH CHECK`.
+7. Repositories também exigem `TenantContext` e filtram explicitamente por `company_id`.
+8. `TenantContext` e `PlatformContext`, bem como pools e roles de tenant e plataforma, permanecem separados.
+9. `superadmin` não possui bypass implícito de RLS no fluxo normal de tenant.
+10. Operações globais iteram tenants explicitamente ou usam caminho de plataforma separado e auditado.
+11. Contexto de tenant nunca é armazenado em variável global do processo.
+12. O contexto local desaparece após `commit` ou `rollback` antes da conexão voltar ao pool.
+13. A credencial da aplicação é um segredo de backend, pois sua role consegue definir um UUID de contexto por `set_config`; o servidor continua responsável por derivar e validar a empresa ativa.
+14. RLS não substitui validação de usuário, empresa, membership, papel ou permissão.
+15. O spike comprovou ausência de vazamento no pool e isolamento sob concorrência entre tenants no escopo executado.
+16. Testes com a role real de runtime e PostgreSQL 14 são fitness functions obrigatórias da implementação definitiva.
+17. Performance, PgBouncer, carga prolongada e failover não foram validados; ficam fora do escopo inicial e registrados como riscos futuros separados.
+
+O aceite acima encerra apenas o gate técnico de isolamento. Não declara a SPEC
+002-A pronta, não autoriza implementação e não resolve decisões de schema,
+migrations, identidade ou operação ainda abertas.
 
 ## Contexto
 
@@ -196,17 +223,31 @@ Regras arquiteturais:
 
 ### PostgreSQL Row-Level Security como defesa em profundidade
 
-Além dos filtros obrigatórios em repository, adotar RLS como defesa em profundidade para tabelas tenant-owned no PostgreSQL 14. A mecânica abaixo é candidata e deve ser comprovada ou ajustada pelo spike:
+Além dos filtros obrigatórios em repository, adotar RLS como defesa em
+profundidade para toda tabela tenant-owned no PostgreSQL 14. A mecânica
+definitiva, validada no spike, é:
 
-- role de runtime sem atributo `BYPASSRLS` e sem propriedade das tabelas;
-- `ENABLE ROW LEVEL SECURITY` e, quando adequado, `FORCE ROW LEVEL SECURITY`;
-- policy de negação por padrão baseada em contexto de tenant definido com `SET LOCAL` dentro de transação;
-- pool sempre limpa contexto ao finalizar a transação;
-- conexão administrativa/migration usa papel separado e nunca atende tráfego da aplicação;
-- jobs multiempresa iteram tenants com contexto explícito, sem query irrestrita do plano empresarial;
-- testes executam com o mesmo papel de banco da aplicação.
+- owner das tabelas sem login de runtime e role comum distinta, explicitamente `NOSUPERUSER` e `NOBYPASSRLS`;
+- `ENABLE ROW LEVEL SECURITY` e `FORCE ROW LEVEL SECURITY` em cada tabela tenant-owned;
+- policies de negação por padrão com predicados equivalentes em `USING` e `WITH CHECK`;
+- leitura segura do contexto por `current_setting('app.current_company_id', true)`, tratando ausência como valor que não autoriza linha;
+- configuração local por `set_config('app.current_company_id', companyId, true)` na mesma conexão e dentro de toda transação tenant, inclusive de leitura;
+- encerramento da transação antes de devolver a conexão ao pool, fazendo o contexto desaparecer tanto em `commit` quanto em `rollback`;
+- pool e role de tenant separados do pool e da role de plataforma;
+- credenciais de owner/migration separadas e nunca usadas para tráfego da aplicação;
+- jobs multiempresa iterando tenants com novo `TenantContext` por transação, ou usando repository global restrito e auditado;
+- testes executados no PostgreSQL 14 com os mesmos atributos e grants da role comum da aplicação.
 
-RLS não substitui autorização de ação, filtro nos repositories nem constraints. Antes da implementação da SPEC 002-A, um spike precisa provar qual mecanismo é seguro com o pool e o query builder escolhidos. SQLite não suporta essa validação e não é gate de isolamento.
+O wrapper transacional é a única porta para um executor tenant-owned. Não há
+variável global do processo, `SET` de sessão, contexto opcional, sentinela ou
+flag de bypass. Texto inválido no contexto falha de modo sanitizado; contexto
+ausente não enxerga nem grava linhas.
+
+RLS não substitui autorização de ação, membership, papel, permissão, filtros dos
+repositories ou constraints. A credencial da role comum precisa permanecer
+restrita ao backend confiável: quem a possuir consegue solicitar
+`set_config` com outro UUID, embora a policy continue limitando o acesso ao UUID
+informado. SQLite não suporta esta prova e não é gate de isolamento.
 
 ### Invariantes administrativas
 
@@ -254,7 +295,15 @@ O evento contém ator, plano, empresa quando aplicável, ação, alvo, resultado
 - falhar revisão se domínio importar query builder, driver, Fastify ou cookie;
 - testar cada ação permitida e negada da matriz para `admin`, `staff` e `superadmin`;
 - executar testes de troca de IDs entre duas empresas no PostgreSQL 14;
-- testar RLS com role real da aplicação e contexto ausente, inválido e válido;
+- inspecionar no catálogo que toda tabela tenant-owned possui RLS habilitada e forçada;
+- inspecionar que a role comum não é owner, superuser nem possui `BYPASSRLS`;
+- testar `USING` e `WITH CHECK` com role real da aplicação e contexto ausente, inválido, próprio e alheio;
+- testar que o contexto existe somente dentro da transação e desaparece após `commit` e `rollback` na mesma conexão física;
+- testar reuso sequencial e concorrente do pool entre ao menos dois tenants sem vazamento;
+- comprovar filtros explícitos de repository independentemente da RLS;
+- impedir por limite arquitetural qualquer variável global de processo para tenant;
+- testar que a role/pool de plataforma não possui grant nos dados tenant-owned;
+- testar job global por iteração explícita e ausência de contexto residual;
 - testar concorrência ao remover último admin ou último superadmin;
 - buscar métodos ou queries com bypass opcional de tenant;
 - testar que respostas não revelam existência de recurso de outro tenant;
@@ -265,7 +314,7 @@ O evento contém ator, plano, empresa quando aplicável, ação, alvo, resultado
 - preservar associação muitos-para-muitos por `Membership`, empresa ativa validada no servidor e separação entre `superadmin` e papéis de membership;
 - preservar negação por padrão e ausência de acesso operacional implícito para `superadmin`;
 - aprovar matriz inicial de permissões e capacidade, ou não, de papéis customizados;
-- concluir spike de RLS com pool, transação, PostgreSQL 14 e Kysely/alternativa escolhida;
+- implementar a mecânica RLS aceita somente em incremento autorizado e repetir as fitness functions no schema definitivo;
 - definir comportamento quando a empresa perde o último admin;
 - definir retenção e acesso aos eventos de auditoria;
 - realizar threat model de IDOR, elevação, confused deputy e contexto de tenant.
@@ -294,4 +343,6 @@ O evento contém ator, plano, empresa quando aplicável, ação, alvo, resultado
 - Papéis customizados serão expostos na SPEC 002 ou apenas suportados pelo modelo?
 - Qual é a matriz exata de permissões de `admin` e `staff` neste incremento?
 - Qual retenção, acesso e exportação serão exigidos para auditoria?
-- O spike comprovará RLS seguro e sustentável com o pool escolhido?
+- Qual limite aceitável de overhead da RLS será adotado após medição no schema e carga definitivos?
+- Quais modos de PgBouncer serão suportados e quais testes de contexto transacional serão exigidos?
+- Qual runbook garantirá falha fechada e recuperação segura durante failover do PostgreSQL?

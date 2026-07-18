@@ -5,18 +5,21 @@
 - **Data:** 2026-07-18
 - **Atualização decisória:** 2026-07-18 — aceite das ADRs 0005/0006 e registro dos gates técnicos remanescentes
 - **Aceite de persistência:** 2026-07-18 — ADR 0004 aceita após revisão do spike Kysely
-- **Spike PostgreSQL RLS:** 2026-07-18 — mecanismo candidato validado tecnicamente; aceite humano pendente
-- **Branch observada:** `spike/spec-002-postgres-rls`
-- **Modo:** `validation`
+- **Aceite PostgreSQL RLS:** 2026-07-18 — mecanismo validado pelo spike e aceito humanamente na ADR 0006
+- **Decomposição executável:** 2026-07-18 — sub-specs 002-A a 002-G criadas
+- **Branch observada:** `docs/spec-002-execution-plan`
+- **Modo:** `documentation`
 - **Spec autorizada:** 002
 - **Estado resultante:** `EM_ESPECIFICACAO`
 - **Commit:** não criado; não autorizado
 - **Produção:** não acessada
-- **Código/migrations:** somente experimentais em `spikes/postgres-rls`; módulos e migrations definitivos não alterados
+- **Código/migrations nesta execução:** nenhum; módulos, spikes, dependencies e migrations físicas não alterados
 
 ## 2. Objetivo da execução
 
-Refinar tecnicamente identidade, autenticação, empresas, memberships, RBAC, isolamento multiempresa e segurança; decompor a entrega em 002-A a 002-G; e registrar propostas arquiteturais sem selecionar tecnologia silenciosamente nem iniciar implementação.
+Formalizar o aceite humano da mecânica PostgreSQL RLS, encerrar seu gate
+técnico, criar sub-specs executáveis 002-A a 002-G e preparar documentalmente
+somente a 002-A para futura implementação, sem código ou migrations físicas.
 
 ## 3. Fontes lidas integralmente
 
@@ -95,7 +98,7 @@ Esses itens foram tratados como evidência de comportamento ou risco. Nenhum có
 |---|---|---|
 | 0004 — persistência/query builder | `ACCEPTED` | Kysely na infraestrutura, PostgreSQL 14 oficial e migrations imutáveis com checksum SHA-256 |
 | 0005 — autenticação/sessões/tokens | `ACCEPTED` | sessão opaca revogável no servidor e nenhum refresh token para a web inicial |
-| 0006 — isolamento/RBAC | `ACCEPTED` | identidade global, memberships multiempresa, contextos separados e RLS em profundidade; mecânica de RLS depende de spike |
+| 0006 — isolamento/RBAC | `ACCEPTED` | identidade global, memberships multiempresa, planos separados e RLS transacional validada/aceita no PostgreSQL 14 |
 
 As ADRs 0004, 0005 e 0006 estão em `ACCEPTED` por decisão humana explícita do responsável. A ADR 0004 foi aceita após conclusão e revisão do spike com Kysely.
 
@@ -109,7 +112,14 @@ As ADRs 0004, 0005 e 0006 estão em `ACCEPTED` por decisão humana explícita do
 - 002-F — Login e seleção de empresa no frontend;
 - 002-G — Hardening e testes de segurança.
 
-Cada incremento possui entrada, entrega, fora de escopo e gate de saída na SPEC. Nenhum foi iniciado.
+Cada incremento possui agora documento próprio em `docs/sdd/002/`, com status,
+contexto, objetivo, dependências, entradas, escopo, fora de escopo, modelo,
+invariantes, requisitos, persistência, segurança, contratos, migrations quando
+aplicável, testes, aceite, gate, rollback e pendências.
+
+- 002-A: `EM_ESPECIFICACAO`;
+- 002-B a 002-G: `BLOQUEADA`;
+- nenhum incremento foi implementado ou autorizado.
 
 ## 9. Validações desta execução
 
@@ -120,7 +130,7 @@ Como a execução é exclusivamente documental:
 - banco e Docker: não acessados;
 - validações aplicáveis: estrutura documental, consistência de status, escopo do diff, ausência de arquivos de aplicação/migration e busca por secrets.
 
-Os comandos e resultados finais de validação estática devem ser registrados na seção 12 antes do encerramento desta execução.
+Os comandos e resultados finais desta nova revisão são registrados na seção 19.
 
 ## 10. Segurança e multiempresa
 
@@ -138,11 +148,14 @@ Os comandos e resultados finais de validação estática devem ser registrados n
 A SPEC continua não pronta porque ainda dependem de decisão:
 
 - matriz RBAC detalhada, delegação e papéis customizados;
-- aceite humano da mecânica RLS já validada com pool e role real no PostgreSQL;
 - MFA, TTL, senha e bootstrap;
 - provedor de recuperação;
 - retenção/privacidade da auditoria;
-- normalização e alteração de e-mail.
+- normalização e alteração de e-mail;
+- formato canônico do checksum e estratégia de tipos/drift para a 002-A.
+
+Performance RLS, PgBouncer e failover permanecem risco futuro separado; não
+reabrem o gate técnico de isolamento encerrado.
 
 As pendências detalhadas estão em `docs/qa/pendencias.md`, seção 8.
 
@@ -372,3 +385,89 @@ A mecânica candidata da ADR 0006 foi tecnicamente validada no PostgreSQL 14:
 O resultado sustenta encerrar o gate técnico de isolamento após revisão humana.
 Ele não altera sozinho a ADR 0006, não libera a SPEC 002-A, não resolve os
 demais gates da SPEC 002 e não autoriza implementação definitiva.
+
+## 18. Aceite humano da mecânica RLS e decomposição executável — 2026-07-18
+
+### Decisões registradas
+
+| # | Decisão humana | Registro resultante |
+|---:|---|---|
+| 1 | ADR 0006 em `ACCEPTED` | status confirmado e decisão pós-spike incorporada |
+| 2 | RLS é defesa em profundidade | não substitui RBAC/autorização |
+| 3 | tabelas tenant-owned usam `ENABLE` e `FORCE RLS` | fitness function de catálogo |
+| 4 | role comum distinta do owner, `NOSUPERUSER` e `NOBYPASSRLS` | privilégio mínimo verificável |
+| 5 | contexto por `set_config(..., true)` em transação | mesma conexão e escopo local |
+| 6 | ausência/invalidez nega por padrão | sem fallback permissivo |
+| 7 | policies usam `USING` e `WITH CHECK` | leitura e escrita protegidas |
+| 8 | repository exige contexto e filtro de `company_id` | barreira independente da RLS |
+| 9 | contexts, pools e roles tenant/plataforma separados | planos não intercambiáveis |
+| 10 | superadmin sem bypass implícito | tenant exige contexto/autorização explícitos |
+| 11 | operação global itera tenants ou usa caminho auditado separado | nenhum query irrestrito por conveniência |
+| 12 | tenant não fica em variável global | propagação exclusivamente explícita/transacional |
+| 13 | contexto desaparece em commit/rollback | conexão volta limpa ao pool |
+| 14 | credencial tenant é secret crítico | quem a possui consegue definir UUID de contexto |
+| 15 | RLS não valida membership/papel/permissão | casos de uso continuam obrigatórios |
+| 16 | spike comprovou pool e concorrência sem vazamento | evidência aceita no escopo executado |
+| 17 | performance/PgBouncer/failover são riscos futuros | pendência separada, sem falso aceite |
+
+### Pendências e estados resultantes
+
+- `PEND-002-006`: encerrada quanto ao gate técnico de RLS;
+- `PEND-002-010`: criada para performance, PgBouncer e failover futuros;
+- `PEND-002-008`: permanece aberta e bloqueia prontidão da primeira migration
+  de usuário;
+- `PEND-002-009`: criada para checksum canônico e estratégia de tipos/drift;
+- SPEC 002: `EM_ESPECIFICACAO`;
+- 002-A: `EM_ESPECIFICACAO`, sem autorização para implementar;
+- 002-B a 002-G: `BLOQUEADA`;
+- SPEC 003: `BLOQUEADA`.
+
+### Sub-specs criadas
+
+- `docs/sdd/002/README.md`;
+- `docs/sdd/002/002-a-persistencia-migrations.md`;
+- `docs/sdd/002/002-b-autenticacao-sessoes.md`;
+- `docs/sdd/002/002-c-empresas-memberships.md`;
+- `docs/sdd/002/002-d-rbac-permissoes.md`;
+- `docs/sdd/002/002-e-administracao-auditoria.md`;
+- `docs/sdd/002/002-f-frontend-login-tenant.md`;
+- `docs/sdd/002/002-g-hardening-seguranca.md`.
+
+### Limite da 002-A
+
+002-A trata somente adapter Kysely, migrations/checksums, representação de
+tipos, schemas/tabelas iniciais de identidade e tenancy, repositories,
+transações, contexts, roles/pools, RLS e testes de persistência/isolamento. Ela
+exclui login, validação de senha, sessão HTTP, recuperação, endpoints
+administrativos, frontend, telas, autenticação completa e RBAC final.
+
+Nenhuma decisão ou documento desta seção autoriza instalar dependência, criar
+migration física, alterar aplicação, acessar produção, criar commit ou avançar
+de spec.
+
+## 19. Validação estática da formalização e sub-specs
+
+- estrutura: sete sub-specs encontradas, cada uma com as 20 seções obrigatórias;
+- índice: `docs/sdd/002/README.md` registra estados, dependências, readiness e
+  regras de execução;
+- estados: 002-A `EM_ESPECIFICACAO`; 002-B–G `BLOQUEADA`; SPEC 002
+  `EM_ESPECIFICACAO`; SPEC 003 `BLOQUEADA`;
+- ADR 0006/índice: `ACCEPTED` e mecânica pós-spike registrada;
+- pendências: `PEND-002-006` encerrada; `PEND-002-009` e `PEND-002-010`
+  separadas conforme natureza do gate/risco;
+- `git diff --check`: aprovado, sem erro de whitespace; somente avisos esperados
+  de normalização LF/CRLF no Windows;
+- trailing whitespace e code fences: aprovados nos documentos da execução;
+- escopo: seis documentos existentes alterados e oito documentos criados,
+  todos na allowlist desta execução;
+- aplicação/infraestrutura: nenhum arquivo em `apps`, `packages`, `infra`,
+  `scripts`, manifests, lockfile, migrations físicas ou spikes alterado;
+- secrets: nenhuma chave privada, token conhecido ou URI de banco com credencial
+  encontrada pela busca estática;
+- lint, typecheck, testes de runtime, build, Docker e banco: `N/A`, pois esta
+  execução altera somente Markdown/controlador documental;
+- Git/produção: nenhum commit, push, deploy ou acesso a produção.
+
+**Resultado:** documentação consistente com o aceite humano e com os limites da
+execução. O resultado não torna a 002-A pronta enquanto `PEND-002-008` e
+`PEND-002-009` permanecerem abertas.

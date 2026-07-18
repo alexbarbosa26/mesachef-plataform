@@ -508,7 +508,7 @@ Os itens documentais acima foram preenchidos e a SPEC 000 foi concluída pelo re
 - [x] Definir organização do monorepo.
 - [x] Definir framework da API.
 - [x] Definir estratégia de banco.
-- [ ] Definir ORM/query builder mediante ADR.
+- [x] Definir ORM/query builder mediante ADR.
 - [x] Definir scripts.
 - [x] Definir Docker Compose.
 - [ ] Definir CI inicial.
@@ -516,7 +516,7 @@ Os itens documentais acima foram preenchidos e a SPEC 000 foi concluída pelo re
 - [x] Definir logging.
 - [x] Definir testes básicos.
 
-ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são necessários para o incremento autorizado e exigem decisão ou execução futura própria.
+A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely. A CI inicial permanece deliberadamente pendente e exige execução futura própria.
 
 ### Passo 6 — Implementar SPEC 001
 
@@ -546,7 +546,7 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 - [x] Aceitar a ADR 0006 — isolamento multiempresa e RBAC, mantendo a implementação da RLS condicionada a spike.
 - [x] Aprovar `Membership` muitos-para-muitos, empresa ativa no servidor, separação de `superadmin`, negação por padrão e ausência de bypass implícito.
 - [x] Concluir o spike técnico descartável com Kysely no PostgreSQL 14 e SQLite auxiliar.
-- [ ] Revisar as ressalvas de checksum/tipos e aceitar, rejeitar ou substituir formalmente a ADR 0004.
+- [x] Revisar as ressalvas do spike e aceitar a ADR 0004 com checksum SHA-256 e domínio independente.
 - [ ] Concluir o spike PostgreSQL e decidir a forma de implementação da RLS.
 - [ ] Resolver as decisões críticas da SPEC 002.
 - [ ] Autorizar explicitamente o primeiro incremento de implementação.
@@ -559,20 +559,17 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 last_execution:
   date: "2026-07-18"
   spec: "002"
-  mode: "validation"
+  mode: "documentation"
   status: "EM_ESPECIFICACAO"
-  summary: "Spike descartável Kysely concluído em spikes/kysely-persistence: PostgreSQL 14.23 e SQLite auxiliar aprovados para migrations up/down, transações, rollback, constraints, decimal exato, repositories desacoplados e tenant query. O migrator não detecta conteúdo alterado sob o mesmo nome; ADR 0004 permanece PROPOSED. Sem implementação da SPEC 002-A, código nos módulos definitivos, commit ou produção."
+  summary: "Aceite humano da ADR 0004 registrado: Kysely na infraestrutura, domínio independente, PostgreSQL 14 oficial, SQLite auxiliar, MoneyDecimal/BigInt escala 4, mapeamentos de UUID/data/dinheiro, migrations imutáveis e checksum SHA-256 em tabela auxiliar. Migrations permanecem separadas do startup da API. SPEC 002-A continua bloqueada pelo spike de RLS; sem código, dependências, migrations definitivas, commit ou produção."
   tests:
-    - "pnpm --dir spikes/kysely-persistence run check: lint, typecheck e 20 testes unitários/arquiteturais/SQLite aprovados."
-    - "pnpm --dir spikes/kysely-persistence run test:postgres: 5 testes aprovados no PostgreSQL 14.23 local."
-    - "pnpm --dir spikes/kysely-persistence run build: aprovado."
-    - "pnpm --dir spikes/kysely-persistence audit --prod: nenhuma vulnerabilidade conhecida."
-    - "Evidência detalhada e cleanup em docs/qa/spikes/spec-002-kysely-persistence.md."
+    - "Lint, typecheck, testes de runtime, build e migrations: N/A nesta execução exclusivamente documental."
+    - "Validação estática: ADR 0004/índice em ACCEPTED, presença das 18 decisões, pendências e bloqueios sincronizados."
+    - "Auditoria de escopo, whitespace e secrets registrada em docs/qa/evidencias/spec-002.md, seção 16."
   blockers:
-    - "PEND-002-001: spike concluído; ADR 0004 ainda depende de política de checksum/migrator, política de tipos e aceite humano."
     - "PEND-002-006: forma de implementação da RLS depende de spike no PostgreSQL 14."
     - "Matriz/delegação RBAC, MFA/bootstrap, recuperação, auditoria e normalização de e-mail continuam abertas."
-  next_recommended_action: "Revisar o relatório do spike, decidir checksum/migrator e manutenção dos tipos, e registrar decisão humana sobre a ADR 0004. Depois executar o spike de RLS no PostgreSQL 14. Manter a SPEC 002-A e a SPEC 003 bloqueadas."
+  next_recommended_action: "Executar, em autorização separada, o spike de RLS no PostgreSQL 14 com Kysely, pool e role real da aplicação. Manter a SPEC 002-A e a SPEC 003 bloqueadas até a conclusão e decisão humana sobre esse spike."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

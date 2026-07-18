@@ -4,7 +4,7 @@
 
 ACCEPTED
 
-Mantida em `PROPOSED` por decisão humana registrada em 2026-07-18. O spike com Kysely foi concluído com ressalvas na mesma data e confirmou a adequação técnica do query builder, mas o aceite ainda depende de decisões sobre checksum, manutenção dos tipos de tabela e revisão humana.
+Aceita por decisão humana em 2026-07-18 após revisão do spike com Kysely. O aceite define a estratégia de persistência e a política de integridade das migrations, mas não autoriza implementar a SPEC 002-A nem remove o gate do spike de RLS.
 
 ## Data
 
@@ -12,10 +12,19 @@ Mantida em `PROPOSED` por decisão humana registrada em 2026-07-18. O spike com 
 
 ## Registro da decisão humana
 
-- **Decisor:** responsável do projeto, por instrução explícita desta execução.
-- **Decisão:** manter esta ADR em `PROPOSED` até concluir e revisar um spike técnico com Kysely no PostgreSQL 14.
-- **Efeito:** a recomendação abaixo orienta o spike, mas não autoriza instalar Kysely, criar migrations ou iniciar a SPEC 002-A.
-- **Gate:** a mudança para `ACCEPTED` exige evidência reproduzível dos critérios desta ADR e decisão humana posterior.
+### Proposição e gate originais
+
+- **Decisão inicial:** manter esta ADR em `PROPOSED` até concluir e revisar um spike técnico com Kysely no PostgreSQL 14.
+- **Evidência produzida:** o spike foi concluído e documentado em `docs/qa/spikes/spec-002-kysely-persistence.md`.
+
+### Aceite posterior ao spike
+
+- **Decisor:** responsável do projeto, por instrução explícita em 2026-07-18.
+- **Decisão:** aceitar Kysely como query builder e adapter de infraestrutura, preservando o domínio sem dependência da biblioteca.
+- **Bancos:** manter PostgreSQL 14 como banco oficial e SQLite somente como auxiliar para cenários compatíveis.
+- **Integridade:** complementar o migrator do Kysely com checksum SHA-256 e imutabilidade de migrations aplicadas.
+- **Operação:** executar migrations como etapa separada de deploy; a API não executa migrations no startup.
+- **Limite:** o aceite não autoriza instalar dependências, criar migrations definitivas ou iniciar a SPEC 002-A nesta execução. A 002-A permanece bloqueada pelo spike de RLS.
 
 ## Evidência técnica do spike — 2026-07-18
 
@@ -30,10 +39,11 @@ detectou alteração no conteúdo de uma migration já aplicada com o mesmo nome
 Sua tabela de histórico possui somente `name` e `timestamp`. A política de
 geração/manutenção dos tipos de tabela também continua sem aceite.
 
-**Resultado para esta ADR:** Kysely é tecnicamente recomendado como query
-builder, porém esta ADR permanece `PROPOSED` até que os dois gates remanescentes
-sejam decididos e o responsável faça o aceite explícito. Evidências completas:
-`docs/qa/spikes/spec-002-kysely-persistence.md`.
+**Resultado para esta ADR:** o responsável revisou a evidência, aceitou Kysely e
+fechou a lacuna do migrator nativo com uma camada obrigatória de checksum
+SHA-256. O mecanismo de geração ou manutenção dos tipos de tabela permanece uma
+decisão interna de infraestrutura, sem permissão para vazar ao domínio.
+Evidências completas: `docs/qa/spikes/spec-002-kysely-persistence.md`.
 
 ## Contexto
 
@@ -50,7 +60,7 @@ A SPEC 002 introduzirá o primeiro modelo persistente da nova plataforma. A deci
 - valores monetários futuros sem `float` ou `number` impreciso;
 - equipe pequena e monólito modular, sem infraestrutura desnecessária.
 
-Esta ADR não define o schema físico da SPEC 002 e não autoriza instalar dependências ou criar migrations.
+Esta ADR não define o schema físico da SPEC 002. Seu aceite não autoriza instalar dependências, criar migrations ou implementar a SPEC 002-A sem execução específica posterior.
 
 ## Drivers priorizados
 
@@ -149,35 +159,56 @@ Esta ADR não define o schema físico da SPEC 002 e não autoriza instalar depen
 | Lock-in | médio | médio/alto | baixo | mínimo |
 | Adequação à equipe pequena | boa | boa, porém mais pesada | boa se houver domínio de SQL | razoável, com maior custo repetitivo |
 
-## Decisão proposta
+## Decisão
 
-Adotar **Kysely como query builder dentro de `packages/database`**, sobre o driver `pg` para PostgreSQL, com estas regras:
+1. Kysely é o query builder e adapter de infraestrutura adotado para a persistência.
+2. O domínio não importa tipos, APIs, schemas ou contratos do Kysely.
+3. PostgreSQL 14 é o banco oficial.
+4. SQLite é apenas auxiliar para desenvolvimento e testes compatíveis.
+5. Persistência, concorrência e isolamento recebem validação final no PostgreSQL 14.
+6. Dinheiro no domínio usa `MoneyDecimal` baseado em `BigInt`, com escala fixa 4.
+7. PostgreSQL armazena dinheiro como `numeric(24,4)`.
+8. SQLite armazena dinheiro como texto decimal canônico.
+9. UUID usa tipo nativo no PostgreSQL e texto validado no SQLite.
+10. Datas são persistidas em UTC: `timestamptz` no PostgreSQL e texto ISO 8601 no SQLite.
+11. Uma migration aplicada é imutável e nunca pode ser editada.
+12. Toda correção de schema ou dados é feita por nova migration.
+13. O migrator do Kysely recebe uma camada obrigatória de checksum SHA-256.
+14. Nome e checksum SHA-256 de cada migration aplicada são registrados em tabela auxiliar.
+15. Divergência entre o conteúdo atual e o checksum registrado de uma migration aplicada causa falha fechada.
+16. Migrations são executadas como etapa separada e explicitamente controlada de deploy.
+17. A API não procura nem executa migrations automaticamente ao iniciar.
+18. A SPEC 002-A permanece bloqueada até a conclusão e aprovação do spike de RLS no PostgreSQL 14.
 
-1. repositories são as únicas portas de persistência consumidas pelos casos de uso;
-2. entidades, value objects e casos de uso não importam Kysely, `pg`, tipos de tabela ou migrations;
-3. rows são mapeadas explicitamente para tipos de domínio;
-4. migrations são incrementais, versionadas, possuem `up` e rollback seguro quando possível e permanecem sob revisão humana;
-5. SQL bruto é permitido somente em infraestrutura, parametrizado, documentado e coberto por teste;
-6. nenhum comando equivalente a schema `push` é permitido nos ambientes persistentes;
-7. PostgreSQL possui migrations e testes oficiais; SQLite usa schema/adapters auxiliares apenas para cenários compatíveis;
-8. migrations específicas de PostgreSQL não precisam ser artificialmente portadas para SQLite;
-9. tipos `numeric/decimal` entram na aplicação como string ou decimal exato e são convertidos para Value Objects; nunca para `float`;
-10. toda query tenant-owned exige um `TenantContext` válido conforme ADR 0006.
+Regras complementares:
 
-A recomendação favorece controle e baixo lock-in sem assumir o custo total de SQL manual. Popularidade não foi usada como critério decisivo.
+- repositories são as únicas portas de persistência consumidas pelos casos de uso;
+- rows e tipos de tabela ficam na infraestrutura e são mapeados explicitamente para o domínio;
+- SQL bruto é permitido somente na infraestrutura, parametrizado, documentado e coberto por teste;
+- nenhum comando equivalente a schema `push` é permitido em ambiente persistente;
+- recursos específicos do PostgreSQL não são artificialmente portados para SQLite;
+- toda query tenant-owned exige `TenantContext` válido conforme ADR 0006;
+- a estratégia de manutenção ou geração dos tipos de tabela deve detectar drift e permanecer confinada a `packages/database`.
 
-## Estratégia de migrations proposta
+A decisão favorece controle e baixo lock-in sem assumir o custo total de SQL manual. Popularidade não foi critério decisivo.
 
-- prefixo monotônico e nome descritivo;
-- uma tabela de histórico controlada pelo migrator;
-- checksum ou detecção de alteração de migration já aplicada;
-- execução forward-only como padrão operacional;
-- `down` somente quando reversão for segura e não destruir dado válido;
-- mudanças destrutivas divididas em expandir, backfill, validar e contrair;
-- execução em banco vazio e base representativa;
-- validação obrigatória no PostgreSQL 14;
-- backup e autorização explícita antes de qualquer operação destrutiva;
-- migrations nunca executadas pelo frontend nem automaticamente no startup de produção.
+## Estratégia de migrations
+
+- usar prefixo monotônico e nome descritivo;
+- manter o histórico operacional do Kysely e uma tabela auxiliar com, no mínimo, nome da migration e checksum SHA-256;
+- calcular o checksum sobre uma representação canônica, determinística e versionada do conteúdo da migration;
+- validar todas as migrations já aplicadas antes de executar qualquer migration pendente;
+- falhar sem aplicar mudanças se nome, conteúdo ou checksum de migration aplicada divergirem;
+- nunca sobrescrever automaticamente o checksum registrado para acomodar divergência;
+- tratar migrations aplicadas como artefatos imutáveis; correções são sempre novas migrations;
+- usar execução forward-only como padrão operacional;
+- oferecer `down` somente quando a reversão for segura e não destruir dado válido;
+- dividir mudanças destrutivas em expandir, backfill, validar e contrair;
+- testar execução em banco vazio e base representativa;
+- validar obrigatoriamente no PostgreSQL 14;
+- executar migrations com papel e etapa de deploy separados da API;
+- proibir execução automática de migrations no startup da API;
+- exigir backup e autorização explícita antes de qualquer operação destrutiva.
 
 ## Consequências positivas
 
@@ -198,21 +229,34 @@ A recomendação favorece controle e baixo lock-in sem assumir o custo total de 
 
 - falhar o build se `packages/domain` importar Kysely, `pg` ou `packages/database`;
 - falhar a revisão se aplicação/API acessar tabelas sem repository;
+- falhar o pipeline se uma migration aplicada tiver nome presente e checksum SHA-256 divergente;
+- testar que alteração de um byte na representação canônica de migration aplicada impede qualquer nova execução;
+- testar que uma correção criada como nova migration preserva o histórico anterior;
+- validar que a tabela auxiliar registra nome e checksum no mesmo fluxo transacional seguro da aplicação da migration;
+- verificar que a API inicia sem consultar, criar ou alterar tabelas de migration;
+- verificar que o deploy executa migrations em etapa separada com credenciais próprias;
 - testar migrations do zero e sobre snapshot representativo no PostgreSQL 14;
 - testar rollback somente quando declarado seguro;
 - verificar que queries tenant-owned recebem contexto empresarial e filtram por chave composta;
-- proibir `number` para colunas monetárias;
+- proibir `number` para dinheiro no domínio e testar round-trip de `MoneyDecimal` com escala 4;
+- verificar `numeric(24,4)`, UUID nativo e `timestamptz` no schema PostgreSQL;
+- verificar texto decimal canônico, UUID textual validado e ISO 8601 UTC no adapter SQLite;
+- impedir que uma validação apenas em SQLite conclua persistência, concorrência ou isolamento;
 - revisar o SQL de toda migration antes de aplicação.
 
-## Gates para aceitar esta ADR
+## Critérios satisfeitos para aceite
 
-- [x] concluir um spike autorizado com Kysely e PostgreSQL 14 para migration, transaction, constraint composta e tenant query;
-- [x] demonstrar um adapter SQLite auxiliar sem duplicar regras de domínio;
-- [x] validar que o migrator detecta migration fora de ordem;
-- [ ] revisar formalmente o relatório do spike;
-- [ ] definir a política de geração/manutenção e verificação de drift dos tipos de tabela;
-- [ ] complementar ou substituir o migrator para detectar alteração de migration aplicada, ou substituir este gate por decisão arquitetural explícita;
-- [ ] registrar o aceite humano desta ADR.
+- [x] spike autorizado com Kysely e PostgreSQL 14 concluído;
+- [x] adapter SQLite auxiliar demonstrado sem duplicar regras de domínio;
+- [x] relatório do spike revisado formalmente;
+- [x] Kysely aceito como query builder e infraestrutura, sem dependência do domínio;
+- [x] representações de dinheiro, UUID e datas definidas por banco;
+- [x] política de imutabilidade e correção por nova migration definida;
+- [x] camada de checksum SHA-256 e falha por divergência decididas;
+- [x] execução de migrations separada do startup da API decidida;
+- [x] aceite humano registrado.
+
+O spike de RLS não condiciona o status desta ADR, mas continua sendo gate obrigatório para iniciar a SPEC 002-A.
 
 ## Quando revisar
 
@@ -234,8 +278,7 @@ A recomendação favorece controle e baixo lock-in sem assumir o custo total de 
 
 ## Questões abertas
 
-- O responsável aceita Kysely como query builder após revisar o spike?
-- Os tipos de tabela serão mantidos manualmente, gerados ou introspectados em CI?
-- O projeto adicionará checksum ao runner, adotará migrator dedicado ou aprovará outro controle de imutabilidade?
+- Os tipos de tabela serão mantidos manualmente, gerados ou introspectados em CI dentro de `packages/database`?
+- Qual representação canônica versionada será usada como entrada do SHA-256 para permanecer estável entre ambientes?
 - Qual é a política operacional de rollback para migrations com transformação de dados?
 - O suporte SQLite continuará obrigatório após os primeiros módulos persistentes?

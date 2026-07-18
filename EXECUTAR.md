@@ -42,7 +42,7 @@ project: MesaChef Platform
 method: SDD
 architecture: modular-monolith
 current_spec: "002"
-execution_mode: documentation
+execution_mode: validation
 auto_advance: false
 auto_commit: false
 auto_push: false
@@ -508,7 +508,7 @@ Os itens documentais acima foram preenchidos e a SPEC 000 foi concluída pelo re
 - [x] Definir organização do monorepo.
 - [x] Definir framework da API.
 - [x] Definir estratégia de banco.
-- [ ] Definir ORM/query builder mediante ADR.
+- [x] Definir ORM/query builder mediante ADR.
 - [x] Definir scripts.
 - [x] Definir Docker Compose.
 - [ ] Definir CI inicial.
@@ -516,7 +516,7 @@ Os itens documentais acima foram preenchidos e a SPEC 000 foi concluída pelo re
 - [x] Definir logging.
 - [x] Definir testes básicos.
 
-ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são necessários para o incremento autorizado e exigem decisão ou execução futura própria.
+A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely. A CI inicial permanece deliberadamente pendente e exige execução futura própria.
 
 ### Passo 6 — Implementar SPEC 001
 
@@ -546,8 +546,9 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 - [x] Aceitar a ADR 0006 — isolamento multiempresa e RBAC, mantendo a implementação da RLS condicionada a spike.
 - [x] Aprovar `Membership` muitos-para-muitos, empresa ativa no servidor, separação de `superadmin`, negação por padrão e ausência de bypass implícito.
 - [x] Concluir o spike técnico descartável com Kysely no PostgreSQL 14 e SQLite auxiliar.
-- [ ] Revisar as ressalvas de checksum/tipos e aceitar, rejeitar ou substituir formalmente a ADR 0004.
-- [ ] Concluir o spike PostgreSQL e decidir a forma de implementação da RLS.
+- [x] Revisar as ressalvas do spike e aceitar a ADR 0004 com checksum SHA-256 e domínio independente.
+- [x] Concluir o spike PostgreSQL de RLS com role real, transação, pool e concorrência.
+- [ ] Revisar humanamente o relatório e registrar na ADR 0006 a forma de implementação da RLS.
 - [ ] Resolver as decisões críticas da SPEC 002.
 - [ ] Autorizar explicitamente o primeiro incremento de implementação.
 
@@ -561,18 +562,16 @@ last_execution:
   spec: "002"
   mode: "validation"
   status: "EM_ESPECIFICACAO"
-  summary: "Spike descartável Kysely concluído em spikes/kysely-persistence: PostgreSQL 14.23 e SQLite auxiliar aprovados para migrations up/down, transações, rollback, constraints, decimal exato, repositories desacoplados e tenant query. O migrator não detecta conteúdo alterado sob o mesmo nome; ADR 0004 permanece PROPOSED. Sem implementação da SPEC 002-A, código nos módulos definitivos, commit ou produção."
+  summary: "Spike descartável PostgreSQL RLS concluído em spikes/postgres-rls. PostgreSQL 14.23 validou role não-owner/NOBYPASSRLS, ENABLE+FORCE RLS, set_config local à transação, negação por padrão, CRUD isolado, IDOR, limpeza após commit/rollback, pool concorrente, filtros de repository e separação TenantContext/PlatformContext. Cleanup confirmou zero tabelas e roles experimentais. Sem módulos ou migrations definitivos, commit ou produção."
   tests:
-    - "pnpm --dir spikes/kysely-persistence run check: lint, typecheck e 20 testes unitários/arquiteturais/SQLite aprovados."
-    - "pnpm --dir spikes/kysely-persistence run test:postgres: 5 testes aprovados no PostgreSQL 14.23 local."
-    - "pnpm --dir spikes/kysely-persistence run build: aprovado."
-    - "pnpm --dir spikes/kysely-persistence audit --prod: nenhuma vulnerabilidade conhecida."
-    - "Evidência detalhada e cleanup em docs/qa/spikes/spec-002-kysely-persistence.md."
+    - "pnpm --dir spikes/postgres-rls run lint e typecheck: aprovados."
+    - "Testes unitários/arquiteturais: 12 aprovados; PostgreSQL RLS: 13 aprovados; concorrência: 3 aprovados; total 28."
+    - "Build, auditoria de secrets e pnpm audit --prod: aprovados; nenhuma vulnerabilidade conhecida."
+    - "Catálogo pós-cleanup: zero tabelas e zero roles spike_rls_*."
   blockers:
-    - "PEND-002-001: spike concluído; ADR 0004 ainda depende de política de checksum/migrator, política de tipos e aceite humano."
-    - "PEND-002-006: forma de implementação da RLS depende de spike no PostgreSQL 14."
+    - "PEND-002-006: evidência técnica favorável; mecânica de RLS aguarda revisão e aceite humano na ADR 0006."
     - "Matriz/delegação RBAC, MFA/bootstrap, recuperação, auditoria e normalização de e-mail continuam abertas."
-  next_recommended_action: "Revisar o relatório do spike, decidir checksum/migrator e manutenção dos tipos, e registrar decisão humana sobre a ADR 0004. Depois executar o spike de RLS no PostgreSQL 14. Manter a SPEC 002-A e a SPEC 003 bloqueadas."
+  next_recommended_action: "Revisar o relatório docs/qa/spikes/spec-002-postgres-rls.md e decidir humanamente se a mecânica deve ser registrada na ADR 0006 e se PEND-002-006 pode ser encerrada. Manter a SPEC 002-A, a SPEC 002 e a SPEC 003 sem avanço automático."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

@@ -4,13 +4,15 @@
 
 - **Data:** 2026-07-18
 - **Atualização decisória:** 2026-07-18 — aceite das ADRs 0005/0006 e registro dos gates técnicos remanescentes
-- **Branch observada:** `docs/spec-002-identity-design`
-- **Modo:** `documentation`
+- **Aceite de persistência:** 2026-07-18 — ADR 0004 aceita após revisão do spike Kysely
+- **Spike PostgreSQL RLS:** 2026-07-18 — mecanismo candidato validado tecnicamente; aceite humano pendente
+- **Branch observada:** `spike/spec-002-postgres-rls`
+- **Modo:** `validation`
 - **Spec autorizada:** 002
 - **Estado resultante:** `EM_ESPECIFICACAO`
 - **Commit:** não criado; não autorizado
 - **Produção:** não acessada
-- **Código/migrations:** não criados nem alterados
+- **Código/migrations:** somente experimentais em `spikes/postgres-rls`; módulos e migrations definitivos não alterados
 
 ## 2. Objetivo da execução
 
@@ -91,11 +93,11 @@ Esses itens foram tratados como evidência de comportamento ou risco. Nenhum có
 
 | ADR | Status | Recomendação condicionada |
 |---|---|---|
-| 0004 — persistência/query builder | `PROPOSED` | Kysely sobre `pg`, repositories e migrations explícitas/versionadas |
+| 0004 — persistência/query builder | `ACCEPTED` | Kysely na infraestrutura, PostgreSQL 14 oficial e migrations imutáveis com checksum SHA-256 |
 | 0005 — autenticação/sessões/tokens | `ACCEPTED` | sessão opaca revogável no servidor e nenhum refresh token para a web inicial |
 | 0006 — isolamento/RBAC | `ACCEPTED` | identidade global, memberships multiempresa, contextos separados e RLS em profundidade; mecânica de RLS depende de spike |
 
-As ADRs 0005 e 0006 foram marcadas `ACCEPTED` somente após decisão humana explícita do responsável em 2026-07-18. A ADR 0004 permanece `PROPOSED` até evidência do spike com Kysely.
+As ADRs 0004, 0005 e 0006 estão em `ACCEPTED` por decisão humana explícita do responsável. A ADR 0004 foi aceita após conclusão e revisão do spike com Kysely.
 
 ## 8. Incrementos especificados
 
@@ -135,9 +137,8 @@ Os comandos e resultados finais de validação estática devem ser registrados n
 
 A SPEC continua não pronta porque ainda dependem de decisão:
 
-- aceite da estratégia de persistência após spike com Kysely;
 - matriz RBAC detalhada, delegação e papéis customizados;
-- implementação da RLS com pool e role real após spike PostgreSQL;
+- aceite humano da mecânica RLS já validada com pool e role real no PostgreSQL;
 - MFA, TTL, senha e bootstrap;
 - provedor de recuperação;
 - retenção/privacidade da auditoria;
@@ -161,7 +162,10 @@ As pendências detalhadas estão em `docs/qa/pendencias.md`, seção 8.
 
 **Resultado:** documentação consistente com o escopo autorizado. Não houve execução de código de aplicação, testes de runtime, banco, Docker, migration, commit ou produção.
 
-## 13. Decisões humanas registradas — 2026-07-18
+## 13. Decisões humanas registradas antes do spike — 2026-07-18
+
+Esta seção preserva o estado histórico anterior ao spike. O aceite posterior da
+ADR 0004 e o estado vigente estão na seção 16.
 
 | # | Decisão | Registro resultante |
 |---:|---|---|
@@ -183,17 +187,17 @@ As pendências detalhadas estão em `docs/qa/pendencias.md`, seção 8.
 - `PEND-002-002`: encerrada quanto à cardinalidade e autoridade da empresa ativa;
 - `PEND-002-003`: parcialmente resolvida; matriz detalhada/delegação continuam abertas;
 - `PEND-002-004`: parcialmente resolvida; estratégia de sessão aceita, parâmetros operacionais continuam abertos;
-- `PEND-002-001` e `PEND-002-006`: permanecem bloqueadoras da SPEC 002-A;
+- `PEND-002-001` e `PEND-002-006`: permaneciam bloqueadoras da SPEC 002-A;
 - `PEND-002-005`, `PEND-002-007` e `PEND-002-008`: permanecem abertas.
 
 ## 14. Validação da atualização decisória
 
 - `git diff --check`: passou; apenas avisos esperados de normalização LF/CRLF no Windows.
 - escopo: exatamente 8 arquivos documentais alterados; nenhum arquivo em `apps`, `packages`, `infra`, `scripts`, manifest ou lockfile.
-- ADR 0004: `PROPOSED` e condicionada a spike com Kysely.
+- ADR 0004: naquela atualização, `PROPOSED` e condicionada a spike com Kysely; o aceite posterior está na seção 16.
 - ADR 0005: `ACCEPTED` e seção `Decisão` definitiva.
 - ADR 0006: `ACCEPTED`, com as decisões de membership, contexto no servidor, separação de papéis, negação por padrão, ausência de bypass e gate PostgreSQL registradas.
-- bloqueios: SPEC 002-A depende explicitamente dos spikes de persistência e RLS; SPEC 003 permanece `BLOQUEADA`.
+- bloqueios naquele momento: SPEC 002-A dependia dos spikes de persistência e RLS; SPEC 003 permanecia `BLOQUEADA`.
 - Kysely: nenhuma ocorrência de dependência instalada em `package.json` ou `pnpm-lock.yaml`.
 - migrations: nenhum arquivo criado ou alterado.
 - Markdown: sem whitespace final e com code fences balanceados nos 8 arquivos.
@@ -249,7 +253,122 @@ conteúdo já aplicado sob o mesmo nome. A tabela de histórico observada possui
 somente `name` e `timestamp`. A política de manutenção/verificação de drift dos
 tipos de tabela também continua sem decisão humana.
 
-**Conclusão:** o spike está concluído com ressalvas, mas a ADR 0004 permanece
-`PROPOSED`. `PEND-002-001` foi parcialmente resolvida; o aceite da ADR depende
-de checksum/migrator, política de tipos e decisão humana. `PEND-002-006` continua
-aberta e ainda bloqueia a SPEC 002-A.
+**Conclusão na data do spike:** a evidência técnica foi concluída com ressalvas.
+O aceite humano posterior está registrado na seção 16: a ADR 0004 passou para
+`ACCEPTED`, `PEND-002-001` foi encerrada e `PEND-002-006` continua aberta e
+bloqueando a SPEC 002-A.
+
+## 16. Aceite humano da estratégia de persistência — 2026-07-18
+
+### Decisões registradas
+
+| # | Decisão humana | Efeito arquitetural |
+|---:|---|---|
+| 1 | Kysely aceito como query builder e adapter de infraestrutura | persistência futura usa Kysely atrás de repositories |
+| 2 | domínio não importa tipos ou APIs do Kysely | limite arquitetural obrigatório e testável |
+| 3 | PostgreSQL 14 é o banco oficial | gate final de persistência |
+| 4 | SQLite é somente auxiliar | uso restrito a desenvolvimento e testes compatíveis |
+| 5 | persistência, concorrência e isolamento são validados finalmente no PostgreSQL 14 | SQLite nunca conclui esses critérios sozinho |
+| 6 | dinheiro usa `MoneyDecimal` baseado em `BigInt`, escala 4 | sem `float` ou `number` no domínio |
+| 7 | PostgreSQL usa `numeric(24,4)` para dinheiro | armazenamento exato oficial |
+| 8 | SQLite usa texto decimal canônico para dinheiro | evita coerção de ponto flutuante |
+| 9 | UUID é nativo no PostgreSQL e texto validado no SQLite | diferença de dialect explícita |
+| 10 | datas são UTC; `timestamptz` no PostgreSQL e ISO 8601 textual no SQLite | instante preservado por adapter |
+| 11 | migration aplicada nunca é editada | histórico imutável |
+| 12 | correção usa nova migration | evolução forward-only por padrão |
+| 13 | migrator Kysely recebe camada de checksum SHA-256 | lacuna nativa do spike mitigada |
+| 14 | nome e checksum ficam em tabela auxiliar | integridade persistida e verificável |
+| 15 | conteúdo alterado de migration aplicada causa falha | comportamento fail-closed obrigatório |
+| 16 | migrations rodam como etapa separada de deploy | execução operacional controlada |
+| 17 | API não executa migrations no startup | credenciais e ciclo de vida separados |
+| 18 | SPEC 002-A permanece bloqueada até concluir o spike de RLS | nenhuma implementação liberada |
+
+### Estado resultante
+
+- ADR 0004: `ACCEPTED`;
+- ADR 0002: permanece `ACCEPTED` e coerente com PostgreSQL/SQLite;
+- `PEND-001-003` e `PEND-002-001`: encerradas;
+- `PEND-002-006`: aberta e bloqueadora da SPEC 002-A;
+- SPEC 002: permanece `EM_ESPECIFICACAO`;
+- SPEC 003: permanece `BLOQUEADA`;
+- dependências, migrations definitivas, banco e produção: não acessados ou alterados;
+- autenticação, empresas, usuários, sessões e RBAC: não implementados;
+- commit: não criado.
+
+### Validação aplicável
+
+Esta execução é exclusivamente documental. Não se aplicam lint, typecheck,
+testes de runtime, build ou execução de migrations. A validação consiste em
+coerência de status, presença das 18 decisões, escopo do diff, ausência de
+alterações no spike/código/manifests, whitespace e busca por secrets.
+
+Resultados verificados:
+
+- ADR 0004 e índice de ADRs registram `ACCEPTED`;
+- as decisões numeradas de 1 a 18 estão presentes tanto na ADR 0004 quanto
+  nesta evidência;
+- `PEND-002-001` está encerrada e `PEND-002-006` permanece aberta;
+- SPEC 002-A permanece bloqueada;
+- o diff está restrito aos cinco documentos autorizados;
+- `apps`, `packages`, `spikes`, `infra`, `scripts`, manifests, specs e
+  migrations não foram alterados;
+- `git diff --check` não identificou erro de whitespace;
+- os blocos Markdown permanecem balanceados;
+- a busca estática não identificou credencial ou secret no diff.
+
+## 17. Spike PostgreSQL RLS — 2026-07-18
+
+### Identificação e escopo
+
+- **Modo:** `validation`;
+- **tipo:** spike técnico descartável;
+- **diretório:** `spikes/postgres-rls`;
+- **relatório:** `docs/qa/spikes/spec-002-postgres-rls.md`;
+- **PostgreSQL:** 14.23 local, container `healthy`;
+- **módulos definitivos:** nenhuma alteração em `apps/**` ou `packages/**`;
+- **spike Kysely anterior:** não alterado;
+- **produção:** não acessada;
+- **commit:** não criado;
+- **estado da SPEC 002:** mantido em `EM_ESPECIFICACAO`;
+- **SPEC 002-A e SPEC 003:** não liberadas.
+
+### Evidências executáveis
+
+| Evidência | Resultado |
+|---|---|
+| RLS | `ENABLE` e `FORCE` confirmados no catálogo |
+| roles | owner, aplicação e plataforma sem superuser/`BYPASSRLS`; aplicação distinta do owner |
+| negação por padrão | ausência retorna zero linhas; escrita falha; contexto inválido falha com erro sanitizado |
+| CRUD tenant | leitura, insert, update e delete isolados entre A e B |
+| IDOR/troca de empresa | ID alheio equivale a inexistente; tentativa de escrever B sob contexto A falha |
+| contexto | `set_config('app.current_company_id', companyId, true)` somente em transação |
+| commit/rollback | mesma conexão `max=1` sem contexto residual |
+| pool | 20 alternâncias A/B e 16 probes simultâneos em múltiplos backends sem vazamento |
+| concorrência | 40 transações A/B sobre múltiplos backends sem cruzamento |
+| repositories | `TenantContext` obrigatório e filtro comprovado mesmo sob superuser que ignora RLS |
+| plataforma | role sem grant tenant-owned; job itera empresas com contexto explícito |
+| lint | aprovado, zero warnings |
+| typecheck | aprovado em TypeScript estrito |
+| testes unitários/arquiteturais | 3 arquivos, 12 testes aprovados |
+| testes PostgreSQL | 1 arquivo, 13 testes aprovados |
+| testes concorrentes | 1 arquivo, 3 testes aprovados |
+| build | aprovado |
+| auditoria de secrets | aprovada |
+| auditoria de dependências de produção | nenhuma vulnerabilidade conhecida |
+| cleanup | zero tabelas e zero roles `spike_rls_*` no catálogo |
+
+### Resultado arquitetural
+
+A mecânica candidata da ADR 0006 foi tecnicamente validada no PostgreSQL 14:
+
+- role runtime não-owner e `NOBYPASSRLS`;
+- `ENABLE` + `FORCE ROW LEVEL SECURITY`;
+- policy `USING` + `WITH CHECK` baseada em configuração local;
+- transação obrigatória com `set_config(..., true)`;
+- repositories ainda filtrados por empresa;
+- `TenantContext` e `PlatformContext` separados também por grants/pools;
+- jobs globais iterando tenants explicitamente.
+
+O resultado sustenta encerrar o gate técnico de isolamento após revisão humana.
+Ele não altera sozinho a ADR 0006, não libera a SPEC 002-A, não resolve os
+demais gates da SPEC 002 e não autoriza implementação definitiva.

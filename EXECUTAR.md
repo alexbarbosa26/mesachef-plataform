@@ -41,8 +41,8 @@ O agente não deve iniciar a próxima spec automaticamente apenas porque termino
 project: MesaChef Platform
 method: SDD
 architecture: modular-monolith
-current_spec: "001"
-execution_mode: validation
+current_spec: "002"
+execution_mode: documentation
 auto_advance: false
 auto_commit: false
 auto_push: false
@@ -100,7 +100,7 @@ docs/skills/security
 |---:|---|---|---|---|
 | 000 | `docs/sdd/000-visao-produto.md` | Visão do produto e escopo da reconstrução | Nenhuma | CONCLUIDA |
 | 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | CONCLUIDA |
-| 002 | `docs/sdd/002-identity-access-multiempresa.md` | Autenticação, autorização e multiempresa | 001 | BLOQUEADA |
+| 002 | `docs/sdd/002-identity-access-multiempresa.md` | Autenticação, autorização e multiempresa | 001 | EM_ESPECIFICACAO |
 | 003 | `docs/sdd/003-layout-navegacao.md` | Layout, navegação e design system | 001 e contratos iniciais da 002 | BLOQUEADA |
 | 004 | `docs/sdd/004-estoque.md` | Estoque e movimentações | 002 e 003 | BLOQUEADA |
 | 005 | `docs/sdd/005-fornecedores-compras.md` | Fornecedores e compras | 002 e 004 | BLOQUEADA |
@@ -128,11 +128,11 @@ Estados permitidos:
 
 ```yaml
 active_spec:
-  id: "001"
-  file: "docs/sdd/001-fundacao-projeto.md"
-  state: "CONCLUIDA"
+  id: "002"
+  file: "docs/sdd/002-identity-access-multiempresa.md"
+  state: "EM_ESPECIFICACAO"
   owner: "Alex"
-  objective: "Criar a fundação técnica do monorepo."
+  objective: "Refinar identidade, autenticação, autorização e isolamento multiempresa e preparar as decisões arquiteturais, sem implementar."
 ```
 
 Para mudar a spec ativa, atualizar este bloco antes de iniciar a execução.
@@ -532,6 +532,24 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 - [x] Validar build completo.
 - [x] Validar PostgreSQL 14.
 
+### Passo 7 — Especificar SPEC 002
+
+- [x] Inventariar identidade, autenticação, autorização e tenancy do legado sem copiar implementação.
+- [x] Refinar contexto, atores, domínio, invariantes, requisitos, contratos e segurança.
+- [x] Dividir a entrega nos incrementos 002-A a 002-G.
+- [x] Propor ADR de persistência e comparar Drizzle, Prisma, Kysely e SQL explícito.
+- [x] Propor ADR de autenticação, sessões e tokens.
+- [x] Propor ADR de isolamento multiempresa e RBAC.
+- [x] Registrar migrations conceituais e testes obrigatórios sem criar migrations físicas.
+- [x] Registrar decisões críticas e manter a SPEC como `EM_ESPECIFICACAO`.
+- [x] Aceitar a ADR 0005 — autenticação, sessões e tokens.
+- [x] Aceitar a ADR 0006 — isolamento multiempresa e RBAC, mantendo a implementação da RLS condicionada a spike.
+- [x] Aprovar `Membership` muitos-para-muitos, empresa ativa no servidor, separação de `superadmin`, negação por padrão e ausência de bypass implícito.
+- [ ] Concluir o spike com Kysely e aceitar, rejeitar ou substituir a ADR 0004.
+- [ ] Concluir o spike PostgreSQL e decidir a forma de implementação da RLS.
+- [ ] Resolver as decisões críticas da SPEC 002.
+- [ ] Autorizar explicitamente o primeiro incremento de implementação.
+
 ---
 
 ## 15. Registro de execução atual
@@ -539,18 +557,19 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 ```yaml
 last_execution:
   date: "2026-07-18"
-  spec: "001"
-  mode: "validation"
-  status: "CONCLUIDA"
-  summary: "Fundação técnica validada integralmente com PostgreSQL 14.23 local em Docker, falha e recuperação do readiness, pipeline completo e auditoria de secrets; nenhum módulo de negócio foi criado."
+  spec: "002"
+  mode: "documentation"
+  status: "EM_ESPECIFICACAO"
+  summary: "Decisões humanas registradas: ADR 0005 e ADR 0006 aceitas; ADR 0004 mantida proposta; Membership multiempresa, contexto ativo no servidor, papéis globais separados, negação por padrão e ausência de bypass implícito aprovados. Sem código, migrations, dependências, banco, interface, commit ou produção."
   tests:
-    - "pnpm install --frozen-lockfile: concluído sem alterações no lockfile."
-    - "pnpm check: lint, limites arquiteturais, contrato do Compose, typecheck, 11 testes unitários, 2 testes de integração e build aprovados."
-    - "Docker Compose 5.3.0: postgres:14-alpine executado com PostgreSQL 14.23, pg_isready e health healthy."
-    - "API com PostgreSQL: live 200 e ready 200; banco parado: live 200 e ready 503 sanitizado; banco restaurado: ready 200 no mesmo processo."
-    - "Auditoria de 111 arquivos: nenhum secret, arquivo sensível versionado, migration de aplicação ou módulo de negócio fora do escopo."
-  blockers: []
-  next_recommended_action: "Manter a SPEC 002 bloqueada e aguardar autorização explícita do proprietário; não alterar automaticamente a spec ativa."
+    - "Testes de aplicação, lint, typecheck e build: N/A nesta execução exclusivamente documental, sem mudança de código ou configuração."
+    - "Validação estática: estados das ADRs, decisões humanas, bloqueios da 002-A/003, escopo documental e ausência de migrations."
+    - "Auditoria do diff e de secrets registrada em docs/qa/evidencias/spec-002.md, seção 14."
+  blockers:
+    - "PEND-002-001: ADR 0004 depende de spike de persistência com Kysely."
+    - "PEND-002-006: forma de implementação da RLS depende de spike no PostgreSQL 14."
+    - "Matriz/delegação RBAC, MFA/bootstrap, recuperação, auditoria e normalização de e-mail continuam abertas."
+  next_recommended_action: "Autorizar separadamente o spike técnico de persistência com Kysely no PostgreSQL 14; depois executar o spike de RLS com a stack validada. Manter a SPEC 002-A e a SPEC 003 bloqueadas até ambos terminarem."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

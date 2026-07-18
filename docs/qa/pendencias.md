@@ -3,9 +3,9 @@
 ## 1. Estado
 
 - **Atualização:** 2026-07-18
-- **Spec ativa:** 001 — Fundação técnica
-- **Estado da spec:** `CONCLUIDA`
-- **Próxima spec:** 002 permanece `BLOQUEADA` e não foi iniciada
+- **Spec ativa:** 002 — Identidade, Autorização e Multiempresa
+- **Estado da spec:** `EM_ESPECIFICACAO`; não pronta para implementação
+- **Próxima spec:** 003 permanece `BLOQUEADA` e não foi iniciada
 
 Este registro concentra conflitos, lacunas de decisão e hipóteses encontradas na leitura das especificações, ADRs e do projeto de referência. Nenhum item deve ser resolvido por suposição silenciosa. A prioridade indica risco para decisões futuras, não autorização para avançar de spec.
 
@@ -34,12 +34,14 @@ Este registro concentra conflitos, lacunas de decisão e hipóteses encontradas 
 
 - **Spec:** 000; impacto futuro principal na 002 e na 003
 - **Prioridade:** Crítica
+- **Status:** parcialmente resolvido em 2026-07-18; negação por padrão, separação de papéis e ausência de bypass implícito foram aceitas. A matriz por módulo e ação continua aberta.
 - **Descrição:** o menu do legado restringe várias funções a `admin`, enquanto diversas rotas verificam apenas autenticação; a rota inicial de qualquer usuário autenticado aponta para `/central-lucro`, embora o menu trate essa função como administrativa.
 - **Impacto:** reproduzir o comportamento observado pode conceder acesso indevido; restringi-lo sem decisão pode alterar o produto.
 - **Evidência:** `docs/migration/mapa-telas-rotas.md`, seções de matriz de rotas e inconsistências; `docs/migration/mapa-funcionalidades.md`, seção de acesso observado.
 - **Opções:** tornar o menu a regra; tornar os guards a regra; definir uma nova matriz por módulo, recurso e ação.
-- **Recomendação:** definir uma matriz explícita `papel × módulo × ação` no backend, incluindo `read`, `create`, `update`, `delete`, exportação e ações críticas.
-- **Decisão necessária:** acesso autorizado para `superadmin`, `admin` e `staff`, inclusive página inicial e Central de Lucro.
+- **Decisões humanas registradas:** autorização com negação por padrão; `superadmin` global separado; `admin`/`staff` empresariais; nenhum bypass implícito de tenant.
+- **Recomendação remanescente:** definir uma matriz explícita `papel × módulo × ação` no backend, incluindo `read`, `create`, `update`, `delete`, exportação e ações críticas.
+- **Decisão necessária:** acesso autorizado para cada ação de `superadmin`, `admin` e `staff`, inclusive página inicial e Central de Lucro.
 
 ### BLOQUEIO-20260718-003 — Vínculo empresarial e dados globais
 
@@ -137,8 +139,113 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 ### PEND-001-003 — ORM ou query builder
 
-- **Prioridade:** Média.
+- **Prioridade:** Alta para o início da SPEC 002; encaminhada, ainda não decidida.
+- **Status:** aberta; Kysely foi escolhido somente como objeto do spike e a ADR 0004 permanece `PROPOSED`.
 - **Descrição:** não existe schema, repository ou caso de persistência de negócio na SPEC 001.
 - **Impacto:** escolher uma ferramenta agora criaria compromisso sem evidência suficiente.
-- **Recomendação:** criar ADR na primeira spec que introduzir persistência e comparar suporte a PostgreSQL, testes auxiliares SQLite, migrations, tipagem e operação.
-- **Decisão necessária:** adiada de forma explícita; a fundação usa somente probes de conectividade.
+- **Encaminhamento em 2026-07-18:** a ADR 0004 compara Drizzle, Prisma, Kysely e SQL explícito com repositories e recomenda Kysely condicionado a spike no PostgreSQL 14.
+- **Recomendação:** aceitar ou substituir a ADR 0004 somente após comprovar migration, transação, constraint composta, tenant query, tipos e adapter SQLite auxiliar.
+- **Decisão humana em 2026-07-18:** não aceitar a ADR 0004 antes da conclusão e revisão do spike com Kysely.
+- **Decisão necessária:** concluir o spike e decidir formalmente a estratégia e o migrator antes do incremento 002-A. A fundação continua usando somente probes de conectividade.
+
+## 8. Pendências da SPEC 002
+
+### Registro de decisões humanas — 2026-07-18
+
+| Decisão | Resultado | Rastreabilidade |
+|---|---|---|
+| ADR 0004 | permanece `PROPOSED` até spike com Kysely | PEND-002-001 |
+| ADR 0005 | `ACCEPTED` | PEND-002-004 parcialmente resolvida |
+| ADR 0006 | `ACCEPTED`; implementação de RLS depende de spike PostgreSQL | PEND-002-003 parcialmente resolvida e PEND-002-006 aberta |
+| Usuário–empresa | muitos-para-muitos por `Membership` | PEND-002-002 encerrada |
+| Empresa ativa | determinada e validada no servidor | PEND-002-002 encerrada quanto à autoridade do contexto |
+| Papéis | `superadmin` global separado de papéis empresariais | PEND-002-003 parcialmente resolvida |
+| Autorização | negação por padrão | PEND-002-003 parcialmente resolvida |
+| Superadmin | nenhum bypass implícito de tenant | PEND-002-003 parcialmente resolvida |
+| Evidência | SQLite não valida isolamento multiempresa | PEND-002-006 permanece aberta até spike PostgreSQL |
+| Ordem | SPEC 002 em especificação; 002-A e 003 bloqueadas | `EXECUTAR.md` |
+
+### PEND-002-001 — Estratégia de persistência e migrations
+
+- **Prioridade:** Crítica.
+- **Status:** aberta; ADR 0004 mantida em `PROPOSED` por decisão humana de 2026-07-18.
+- **Descrição:** a SPEC 002 introduzirá a primeira persistência de negócio, mas query builder, migrator e manutenção dos tipos de tabela ainda não foram aceitos.
+- **Impacto:** bloqueia schema, repositories, migrations e o início do incremento 002-A, em conjunto com a PEND-002-006.
+- **Evidência:** `docs/adr/0004-estrategia-persistencia-query-builder.md` e `docs/sdd/002-identity-access-multiempresa.md`, seções 18, 20 e 25.
+- **Recomendação:** Kysely sobre `pg`, migrations explícitas/versionadas e domínio isolado, condicionado a spike no PostgreSQL 14.
+- **Decisão humana registrada:** Kysely será avaliado no spike; não deve ser instalado nem tratado como aceito nesta execução.
+- **Decisão necessária:** concluir e revisar o spike, aceitar/rejeitar/substituir a ADR 0004 e definir geração/manutenção dos tipos.
+
+### PEND-002-002 — Associação multiempresa e empresa ativa
+
+- **Prioridade:** resolvida em 2026-07-18 por decisão humana.
+- **Status:** encerrada quanto à cardinalidade e à autoridade da empresa ativa; ADR 0006 em `ACCEPTED`.
+- **Descrição original:** o legado associa perfil a uma empresa, enquanto a proposta usa identidade global com várias memberships e empresa ativa na sessão.
+- **Decisão:** associação muitos-para-muitos por `Membership`; empresa ativa determinada e validada no servidor.
+- **Impacto:** schema, login e autorização devem respeitar a decisão. A escolha automática quando existir uma única membership continua registrada em `DEC-002-016`, sem reabrir a autoridade do contexto.
+- **Evidência:** inventário em `docs/migration`; ADR 0006; SPEC 002, seções 9, 10 e 20-C.
+- **Evidência da resolução:** ADR 0006, SPEC 002, seção 25.1, e instrução humana de 2026-07-18.
+- **Decisão necessária:** nenhuma para cardinalidade ou validação no servidor; somente o comportamento de seleção automática permanece aberto.
+
+### PEND-002-003 — Matriz RBAC e limites de superadmin
+
+- **Prioridade:** Crítica.
+- **Status:** parcialmente resolvida; ADR 0006 em `ACCEPTED`, relacionada ao `BLOQUEIO-20260718-002`.
+- **Descrição:** faltam códigos finais de permissão, capacidade delegável, decisão sobre papéis customizados e regra de acesso operacional de `superadmin`.
+- **Impacto:** sem matriz explícita não é seguro implementar administração, menu, guards ou endpoints.
+- **Evidência:** `docs/sdd/002-identity-access-multiempresa.md`, seções 12, 14 e 25; inconsistências do legado em `docs/migration/mapa-telas-rotas.md`.
+- **Decisões humanas registradas:** negação por padrão; `admin`/`staff` no plano empresarial; `superadmin` global separado; nenhum bypass implícito de tenant.
+- **Recomendação remanescente:** manter modelo extensível e adiar exposição de papéis customizados até decisão específica.
+- **Decisão necessária:** aprovar matriz `papel × recurso × ação`, capacidade delegável, papéis customizados e eventual fluxo futuro de suporte explícito.
+
+### PEND-002-004 — Política de autenticação, MFA e bootstrap
+
+- **Prioridade:** Crítica.
+- **Status:** parcialmente resolvida; ADR 0005 em `ACCEPTED`.
+- **Descrição:** sessão opaca no servidor, sem refresh token para a web inicial, foi aceita. TTL, parâmetros Argon2id, política de senha, MFA administrativo e canal de bootstrap ainda exigem decisão/benchmark.
+- **Impacto:** bloqueia autenticação, sessões e criação segura do primeiro superadmin.
+- **Evidência:** ADR 0005 e SPEC 002, seções 13, 15, 16 e 25.
+- **Decisão humana registrada:** aceitar a estratégia de sessão, rotação, expiração e revogação da ADR 0005; isso não autoriza implementar autenticação.
+- **Recomendação remanescente:** 30 minutos de inatividade/12 horas absolutas como baseline, Argon2id e MFA obrigatório para `superadmin`.
+- **Decisão necessária:** aprovar parâmetros, tecnologia MFA e fluxo de ativação fora de banda.
+
+### PEND-002-005 — Entrega de recuperação e ativação
+
+- **Prioridade:** Alta.
+- **Status:** aberta.
+- **Descrição:** não há provedor de e-mail, domínio confiável de links, tratamento de bounce ou runbook de falha aprovado.
+- **Impacto:** impede concluir recuperação de senha e ativação sem improvisar integração ou segredo.
+- **Evidência:** ADR 0005 e SPEC 002, seções 14.2, 15.4 e 25.
+- **Recomendação:** escolher provedor atrás de porta/adaptador, usar origem configurada, token de uso único e resposta genérica.
+- **Decisão necessária:** provedor, remetente, domínio, templates, retenção e suporte.
+
+### PEND-002-006 — RLS e contexto de tenant no pool
+
+- **Prioridade:** Crítica.
+- **Status:** aberta; ADR 0006 aceita e spike PostgreSQL obrigatório para definir a implementação.
+- **Descrição:** RLS foi aceita como direção de defesa em profundidade, mas `SET LOCAL` é apenas candidato; role de runtime, pool, query builder e concorrência ainda não foram comprovados.
+- **Impacto:** configuração incorreta pode manter contexto entre requisições ou criar falsa garantia de isolamento; a SPEC 002-A permanece bloqueada até a conclusão deste spike e do spike de persistência.
+- **Evidência:** ADR 0006 e SPEC 002, seções 17, 18.6 e 21.3.
+- **Decisões humanas registradas:** SQLite não é evidência suficiente; `superadmin` não possui bypass implícito; a forma de RLS depende de spike PostgreSQL.
+- **Recomendação:** spike no PostgreSQL 14 com role sem owner/`BYPASSRLS`, transações concorrentes, contexto ausente/inválido, reuso de conexão e tentativa de acesso cruzado.
+- **Decisão necessária:** escolher policies, propagação do contexto e padrão de transação somente após evidência reproduzível.
+
+### PEND-002-007 — Retenção e privacidade da auditoria
+
+- **Prioridade:** Alta.
+- **Status:** aberta; relacionada a `PEND-000-013`.
+- **Descrição:** eventos mínimos foram propostos, mas retenção, acesso, exportação, imutabilidade operacional e tratamento de dados pessoais não foram aprovados.
+- **Impacto:** pode produzir registro excessivo, insuficiente ou incompatível com obrigações de privacidade.
+- **Evidência:** `docs/sdd/002-identity-access-multiempresa.md`, seções 9.9, 19 e 25.
+- **Recomendação:** allowlist de metadados, escopo explícito, acesso mínimo e retenção definida antes do incremento 002-E.
+- **Decisão necessária:** política de retenção, responsáveis, consultas permitidas e processo de atendimento ao titular.
+
+### PEND-002-008 — Normalização e alteração de e-mail
+
+- **Prioridade:** Alta.
+- **Status:** aberta.
+- **Descrição:** a unicidade depende de uma normalização global estável, mas não foram decididos Unicode, case folding, alteração de endereço e revalidação.
+- **Impacto:** risco de contas duplicadas, bloqueio indevido ou tomada de conta durante mudança de e-mail.
+- **Evidência:** SPEC 002, invariantes e `DEC-002-013`.
+- **Recomendação:** definir algoritmo único antes da primeira migration e tratar mudança como operação verificada, auditada e revogadora de sessões quando aplicável.
+- **Decisão necessária:** regra canônica e fluxo de alteração.

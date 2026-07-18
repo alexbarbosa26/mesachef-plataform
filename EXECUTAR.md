@@ -53,9 +53,9 @@ development_database: "SQLite ou PostgreSQL 14 local"
 preproduction_database: "PostgreSQL 14"
 ```
 
-O modo acima prepara a próxima execução da 002-A. Ele não autoriza
-retroativamente código ou migrations nesta revisão documental e não elimina a
-necessidade de instrução explícita do usuário para iniciar a implementação.
+O modo acima mantém a 002-A ativa durante sua implementação incremental. A
+002-A1 foi concluída nesta execução; 002-A2 e etapas posteriores continuam sem
+autorização e exigem nova instrução explícita do usuário.
 
 ### Modos possíveis
 
@@ -134,20 +134,24 @@ Estados permitidos:
 active_spec:
   id: "002-A"
   file: "docs/sdd/002/002-a-persistencia-migrations.md"
-  state: "PRONTA_PARA_IMPLEMENTAR"
+  state: "EM_IMPLEMENTACAO"
   owner: "Alex"
-  objective: "Implementar, em execução futura explicitamente autorizada, somente a persistência e as migrations de identidade definidas na 002-A."
+  objective: "Manter a 002-A em implementação incremental após concluir somente a infraestrutura Kysely, tipos, migrator e checksum da 002-A1; aguardar autorização para 002-A2."
   parent_spec:
     id: "002"
     state: "EM_ESPECIFICACAO"
   increment_states:
-    "002-A": "PRONTA_PARA_IMPLEMENTAR"
+    "002-A": "EM_IMPLEMENTACAO"
     "002-B": "BLOQUEADA"
     "002-C": "BLOQUEADA"
     "002-D": "BLOQUEADA"
     "002-E": "BLOQUEADA"
     "002-F": "BLOQUEADA"
     "002-G": "BLOQUEADA"
+  subincrement_control:
+    last_completed: "002-A1"
+    next_planned: "002-A2"
+    next_authorized: false
 ```
 
 Para mudar a spec ativa, atualizar este bloco antes de iniciar a execução.
@@ -569,6 +573,8 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 - [x] Resolver normalização de e-mail, formato canônico de checksum, política de tipos e detecção de drift da 002-A.
 - [x] Encerrar `PEND-002-008` e `PEND-002-009` e promover somente a 002-A para `PRONTA_PARA_IMPLEMENTAR`.
 - [x] Preparar 002-A como spec ativa e o modo `implementation` para a próxima execução, sem implementar nesta revisão documental.
+- [x] Implementar e validar somente 002-A1 — infraestrutura Kysely, tipos, migrator e checksum `v1`.
+- [ ] Autorizar e executar 002-A2 em uma nova execução, sem avanço automático.
 - [ ] Resolver as decisões críticas da SPEC 002.
 - [ ] Executar a 002-A em uma execução de implementação explicitamente autorizada.
 
@@ -580,21 +586,23 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 last_execution:
   date: "2026-07-18"
   spec: "002-A"
-  mode: "documentation"
-  status: "PRONTA_PARA_IMPLEMENTAR"
-  summary: "Decisões humanas de normalização de e-mail, checksum SHA-256/canonicalização v1, política de tipos e detecção de drift registradas. PEND-002-008 e PEND-002-009 encerradas; não resta bloqueio crítico de persistência ou isolamento da 002-A. A 002-A passa a PRONTA_PARA_IMPLEMENTAR e torna-se a spec ativa para a próxima execução em modo implementation. A SPEC 002 permanece EM_ESPECIFICACAO; 002-B a 002-G e SPEC 003 permanecem BLOQUEADAS. Nenhum código, dependency, migration física, banco, produção ou commit foi alterado."
+  increment: "002-A1"
+  mode: "implementation"
+  status: "CONCLUIDO"
+  summary: "Somente 002-A1 foi implementado: Kysely 0.29.4, drivers PostgreSQL/SQLite, boundaries, MoneyDecimal/UUID/UTC, adapters exatos, migrator externo, checksum SHA-256 e canonicalização UTF-8 v1 com metadados e falha por alteração. A migration criada contém apenas infraestrutura técnica de integridade. Nenhuma tabela de identidade/tenancy, repository, role, RLS, endpoint, frontend ou item de 002-A2 foi criado. A 002-A fica EM_IMPLEMENTACAO; SPEC 002 continua EM_ESPECIFICACAO e 002-B a 002-G/SPEC 003 continuam BLOQUEADAS."
   tests:
-    - "git diff --check: aprovado; apenas avisos LF/CRLF esperados no Windows."
-    - "Validação estrutural: 7 arquivos documentais/controladores, fences Markdown e whitespace aprovados."
-    - "Escopo: nenhum código de aplicação, dependency, manifest, lockfile, spike ou migration física alterado."
-    - "Auditoria estática de secrets: aprovada."
-    - "Lint, typecheck, testes de runtime, build, Docker e banco: N/A nesta execução exclusivamente documental."
+    - "pnpm check: aprovado — lint, boundaries, Compose, typecheck, 42 testes unitários, 7 testes de integração, 2 testes PostgreSQL 14 e build do monorepo."
+    - "pnpm test:sqlite: aprovado — 2 testes do migrator, incluindo up/down, metadados e adulteração fail-closed."
+    - "Container PostgreSQL local: healthy e publicado somente em 127.0.0.1:5432."
+    - "db:migrate:up/status/down: aprovados em arquivo SQLite temporário removido ao final."
+    - "pnpm audit e pnpm audit --prod: aprovados — nenhuma vulnerabilidade conhecida."
+    - "Auditoria estática de secrets: aprovada; .env não rastreado e nenhum padrão conhecido de credencial encontrado."
   blockers:
-    - "Nenhum bloqueio crítico de persistência ou isolamento permanece para iniciar a 002-A."
+    - "002-A2 e etapas posteriores não foram autorizadas nesta execução."
     - "Matriz/delegação RBAC, MFA/bootstrap, recuperação e auditoria continuam como gates da SPEC 002 e dos incrementos posteriores, sem bloquear a 002-A."
   future_risks:
     - "PEND-002-010: performance RLS, PgBouncer e failover exigem validação futura separada e não bloqueiam a implementação inicial."
-  next_recommended_action: "Em nova execução explicitamente autorizada, implementar somente a 002-A, começando pelos contratos de MoneyDecimal, normalização de e-mail, infraestrutura Kysely/migrator com checksum v1 e db:verify, e validando migrations/RLS no PostgreSQL 14. Não iniciar a 002-B nem avançar a SPEC 002 ou a SPEC 003."
+  next_recommended_action: "Solicitar autorização específica para 002-A2 e definir seu menor escopo antes de criar qualquer schema definitivo de identidade/tenancy. Não iniciar 002-A2, 002-B nem avançar a SPEC 002 ou a SPEC 003 automaticamente."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

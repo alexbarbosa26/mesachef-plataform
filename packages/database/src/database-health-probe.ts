@@ -1,8 +1,12 @@
-import { DatabaseSync } from 'node:sqlite';
+import { sql } from 'kysely';
+import type { Kysely } from 'kysely';
 
-import { Pool } from 'pg';
-
-export type DatabaseProvider = 'postgres' | 'sqlite';
+import type {
+  DatabaseConnectionConfig,
+  DatabaseProvider,
+} from './database-config.js';
+import { createInfrastructureDatabase } from './kysely/create-database.js';
+import type { MigrationInfrastructureDatabase } from './kysely/database-schema.js';
 
 export type DatabaseHealthCheck =
   | Readonly<{ status: 'up' }>
@@ -14,29 +18,20 @@ export interface DatabaseHealthProbe {
   close(): Promise<void>;
 }
 
-export type DatabaseHealthProbeConfig = Readonly<{
-  connectionString: string;
-  connectionTimeoutMs: number;
-  provider: DatabaseProvider;
-}>;
+export type DatabaseHealthProbeConfig = DatabaseConnectionConfig;
 
-class PostgresDatabaseHealthProbe implements DatabaseHealthProbe {
-  public readonly provider = 'postgres' as const;
-  readonly #pool: Pool;
+class KyselyDatabaseHealthProbe implements DatabaseHealthProbe {
+  public readonly provider: DatabaseProvider;
+  readonly #database: Kysely<MigrationInfrastructureDatabase>;
 
   public constructor(config: DatabaseHealthProbeConfig) {
-    this.#pool = new Pool({
-      allowExitOnIdle: true,
-      connectionString: config.connectionString,
-      connectionTimeoutMillis: config.connectionTimeoutMs,
-      idleTimeoutMillis: 10_000,
-      max: 2,
-    });
+    this.provider = config.provider;
+    this.#database = createInfrastructureDatabase(config);
   }
 
   public async check(): Promise<DatabaseHealthCheck> {
     try {
-      await this.#pool.query('SELECT 1');
+      await sql`select 1`.execute(this.#database);
       return { status: 'up' };
     } catch (error: unknown) {
       return { error, status: 'down' };
@@ -44,43 +39,12 @@ class PostgresDatabaseHealthProbe implements DatabaseHealthProbe {
   }
 
   public async close(): Promise<void> {
-    await this.#pool.end();
-  }
-}
-
-class SqliteDatabaseHealthProbe implements DatabaseHealthProbe {
-  public readonly provider = 'sqlite' as const;
-  readonly #database: DatabaseSync;
-  #closed = false;
-
-  public constructor(config: DatabaseHealthProbeConfig) {
-    this.#database = new DatabaseSync(config.connectionString);
-  }
-
-  public async check(): Promise<DatabaseHealthCheck> {
-    try {
-      this.#database.prepare('SELECT 1').get();
-      return { status: 'up' };
-    } catch (error: unknown) {
-      return { error, status: 'down' };
-    }
-  }
-
-  public async close(): Promise<void> {
-    if (!this.#closed) {
-      this.#database.close();
-      this.#closed = true;
-    }
+    await this.#database.destroy();
   }
 }
 
 export function createDatabaseHealthProbe(
   config: DatabaseHealthProbeConfig,
 ): DatabaseHealthProbe {
-  switch (config.provider) {
-    case 'postgres':
-      return new PostgresDatabaseHealthProbe(config);
-    case 'sqlite':
-      return new SqliteDatabaseHealthProbe(config);
-  }
+  return new KyselyDatabaseHealthProbe(config);
 }

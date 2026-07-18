@@ -12,6 +12,7 @@ const validEnvironment: NodeJS.ProcessEnv = {
   APP_URL: 'http://localhost:5173',
   CORS_ALLOWED_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173',
   DATABASE_CONNECTION_TIMEOUT_MS: '1000',
+  DATABASE_POOL_MAX: '2',
   DATABASE_PROVIDER: 'sqlite',
   DATABASE_URL: ':memory:',
   LOG_LEVEL: 'silent',
@@ -30,6 +31,7 @@ describe('loadApplicationConfig', () => {
       },
       database: {
         connectionString: ':memory:',
+        poolMax: 2,
         provider: 'sqlite',
       },
       openApiEnabled: false,

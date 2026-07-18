@@ -2,17 +2,26 @@
 
 ## Status
 
-- **Estado:** `PRONTA_PARA_IMPLEMENTAR`
+- **Estado:** `EM_IMPLEMENTACAO`
 - **Atualização:** 2026-07-18
-- **Implementação executada nesta revisão:** não; execução exclusivamente documental
-- **Motivo:** os gates críticos de persistência, normalização de e-mail,
-  checksum, tipos, drift e RLS foram decididos e possuem critérios verificáveis.
+- **Implementação executada nesta revisão:** somente 002-A1 — infraestrutura
+  Kysely, tipos, migrator e checksum
+- **Motivo:** 002-A1 foi implementado e validado; os schemas, repositories,
+  contextos e controles de isolamento dos incrementos seguintes não foram
+  autorizados nem iniciados.
+
+### Controle incremental
+
+| Incremento | Escopo | Estado | Evidência |
+|---|---|---|---|
+| 002-A1 | Kysely/drivers, tipos exatos, migrator separado, SHA-256 e canonicalização `v1` | `CONCLUIDO` | `docs/qa/evidencias/spec-002-a.md` |
+| 002-A2 e seguintes | schema de identidade/tenancy, `db:verify`, repositories, contextos, roles e RLS definitivos | `BLOQUEADOS` | exigem nova autorização explícita |
 
 ## Contexto
 
-A fundação técnica ainda não possui persistência de negócio. Este incremento
-deve criar, em execução futura autorizada, a fronteira definitiva entre domínio
-e banco para os primeiros dados de identidade e tenancy. Os spikes provaram
+A fundação técnica ainda não possui persistência de negócio. A execução
+incremental começou pela fronteira definitiva entre domínio e infraestrutura,
+sem criar tabelas de identidade ou tenancy. Os spikes provaram
 Kysely no PostgreSQL 14/SQLite auxiliar e uma mecânica segura de RLS no
 PostgreSQL 14 com transações e pool; os objetos experimentais não são schema a
 copiar.
@@ -413,8 +422,8 @@ forward fix como padrão.
 
 - [x] decisões críticas de checksum, tipos/drift e e-mail aprovadas;
 - [ ] `email_original`/`email_normalized`, normalizador e unicidade implementados/testados;
-- [ ] Kysely existe somente nos adapters de infraestrutura;
-- [ ] migrations são externas ao startup e protegidas por checksum SHA-256 `v1`;
+- [x] Kysely existe somente nos adapters de infraestrutura;
+- [x] migrations são externas ao startup e protegidas por checksum SHA-256 `v1`;
 - [ ] `db:verify` detecta os objetos críticos e falha sem autocorreção;
 - [ ] schema inicial de identidade/tenancy atende constraints e ownership;
 - [ ] contexts, pools, roles e repositories tenant/plataforma estão separados;
@@ -422,9 +431,12 @@ forward fix como padrão.
 - [ ] contexto transacional desaparece após commit/rollback e não vaza no pool;
 - [ ] filtros explícitos e testes de IDOR passam independentemente da RLS;
 - [ ] migrations e isolamento passam no PostgreSQL 14;
-- [ ] SQLite está documentado somente como auxiliar;
-- [ ] lint, typecheck, testes, build e auditorias passam;
-- [ ] evidências e documentação são atualizadas sem secret.
+- [x] SQLite está documentado somente como auxiliar;
+- [x] lint, typecheck, testes, build e auditorias passam para o escopo 002-A1;
+- [x] evidências e documentação de 002-A1 são atualizadas sem secret.
+
+Os itens marcados para 002-A1 devem ser reexecutados no gate final da 002-A;
+eles não antecipam o aceite dos itens ainda abertos.
 
 ## Gate de saída
 
@@ -452,5 +464,5 @@ crítico de persistência/isolamento e o diff não contiver funcionalidade de
 | PEND-002-010 | `ABERTA_NAO_BLOQUEADORA` | performance, PgBouncer e failover são gate futuro de hardening/pré-produção |
 
 Não resta decisão crítica de persistência ou isolamento para iniciar este
-incremento. A 002-A está `PRONTA_PARA_IMPLEMENTAR`; isso não significa que
-código ou migration tenha sido criado nesta revisão documental.
+incremento. A 002-A está `EM_IMPLEMENTACAO`: somente 002-A1 está concluído e
+002-A2 ou qualquer etapa posterior depende de nova autorização explícita.

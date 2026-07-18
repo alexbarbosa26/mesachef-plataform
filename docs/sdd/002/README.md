@@ -4,7 +4,7 @@
 
 - **Iniciativa agregadora:** SPEC 002 — `EM_ESPECIFICACAO`
 - **Atualização:** 2026-07-18
-- **Implementação nesta revisão:** não; promoção documental somente
+- **Implementação nesta revisão:** somente 002-A1, concluído e validado
 - **Avanço automático:** não
 - **Próxima spec principal:** SPEC 003 — `BLOQUEADA`
 
@@ -19,7 +19,7 @@ ordem.
 
 | Incremento | Documento | Estado atual | Dependência de execução |
 |---|---|---|---|
-| 002-A | `002-a-persistencia-migrations.md` | `PRONTA_PARA_IMPLEMENTAR` | execução ativa em modo `implementation`; nenhum código nesta revisão |
+| 002-A | `002-a-persistencia-migrations.md` | `EM_IMPLEMENTACAO` | 002-A1 concluído; 002-A2 e seguintes sem autorização |
 | 002-B | `002-b-autenticacao-sessoes.md` | `BLOQUEADA` | 002-A concluída e decisões de autenticação aprovadas |
 | 002-C | `002-c-empresas-memberships.md` | `BLOQUEADA` | 002-B concluída e regras cadastrais aprovadas |
 | 002-D | `002-d-rbac-permissoes.md` | `BLOQUEADA` | 002-C concluída e matriz RBAC aprovada |
@@ -51,10 +51,13 @@ posteriores encerraram também os gates de e-mail e governança do schema:
    PostgreSQL.
 
 `PEND-002-008` e `PEND-002-009` estão encerradas. Não existe outra decisão
-crítica de persistência/isolamento para o escopo inicial, portanto a 002-A está
-`PRONTA_PARA_IMPLEMENTAR`. `PEND-002-010` permanece aberta para performance
-RLS, PgBouncer e failover, sem bloquear a implementação inicial. A promoção não
-representa código ou migration executados nesta revisão.
+crítica de persistência/isolamento para o escopo inicial. A execução autorizada
+de 002-A1 entregou a infraestrutura Kysely, tipos exatos, migrator separado e
+checksum SHA-256/canonicalização `v1`; por isso a 002-A está
+`EM_IMPLEMENTACAO`. `PEND-002-010` permanece aberta para performance RLS,
+PgBouncer e failover, sem bloquear a implementação inicial. Nenhum schema de
+identidade/tenancy, repository, role ou policy RLS definitiva foi criado, e
+002-A2 continua sem autorização.
 
 ## Rastreabilidade arquitetural
 

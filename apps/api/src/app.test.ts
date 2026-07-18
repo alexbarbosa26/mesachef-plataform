@@ -18,6 +18,7 @@ const testConfig: ApplicationConfig = {
   database: {
     connectionString: ':memory:',
     connectionTimeoutMs: 1_000,
+    poolMax: 1,
     provider: 'sqlite',
   },
   logLevel: 'silent',

@@ -7,6 +7,7 @@ describe('SQLite database health probe', () => {
     const probe = createDatabaseHealthProbe({
       connectionString: ':memory:',
       connectionTimeoutMs: 1_000,
+      poolMax: 1,
       provider: 'sqlite',
     });
 

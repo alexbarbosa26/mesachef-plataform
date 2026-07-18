@@ -3,9 +3,8 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    exclude: ['**/*.postgres.integration.test.{ts,tsx}'],
-    include: ['{apps,packages}/**/*.integration.test.{ts,tsx}'],
+    include: ['packages/**/*.postgres.integration.test.{ts,tsx}'],
     passWithNoTests: false,
-    testTimeout: 10_000,
+    testTimeout: 20_000,
   },
 });

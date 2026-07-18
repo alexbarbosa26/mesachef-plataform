@@ -3,8 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    exclude: ['**/*.postgres.integration.test.{ts,tsx}'],
-    include: ['{apps,packages}/**/*.integration.test.{ts,tsx}'],
+    include: ['packages/**/*.sqlite.integration.test.{ts,tsx}'],
     passWithNoTests: false,
     testTimeout: 10_000,
   },

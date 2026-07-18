@@ -4,7 +4,8 @@ Fundação técnica da reconstrução controlada do MesaChef em monólito modula
 
 ## Estado atual
 
-A SPEC 001 entrega apenas:
+A SPEC 001 entrega a fundação técnica e o incremento 002-A1 acrescenta somente
+a infraestrutura inicial de persistência:
 
 - monorepo TypeScript;
 - aplicação web React/Vite;
@@ -13,8 +14,13 @@ A SPEC 001 entrega apenas:
 - health checks, configuração validada e logging estruturado;
 - PostgreSQL 14 local e SQLite auxiliar;
 - lint, verificação arquitetural, typecheck, testes e build.
+- Kysely e drivers confinados a `packages/database`;
+- tipos próprios para dinheiro exato, UUID e data/hora UTC;
+- migrator executado fora do startup da API, com checksum SHA-256 e
+  canonicalização UTF-8 `v1`.
 
-Não existem login, empresas, usuários ou módulos de negócio nesta etapa.
+Não existem login, tabelas de usuários/empresas, memberships, sessões, RBAC,
+repositories de identidade, RLS definitiva ou módulos de negócio nesta etapa.
 
 ## Requisitos
 
@@ -86,7 +92,29 @@ cp .env.sqlite.example .env
 ```
 
 A configuração auxiliar usa um banco em memória e não cria schema de negócio.
-O Node.js 24 ainda sinaliza `node:sqlite` como experimental; por isso, esse caminho não é autorizado para produção nem substitui os testes em PostgreSQL.
+O adapter usa `better-sqlite3` apenas para cenários compatíveis. SQLite não é
+autorizado para produção nem substitui os testes finais em PostgreSQL 14.
+
+## Migrations locais
+
+As migrations são artefatos `.mjs` versionados em
+`packages/database/migrations`. A API não importa nem executa o migrator ao
+iniciar. Configure `APP_VERSION`, provider, URL, timeout e pool no `.env` local
+e mantenha `DATABASE_MIGRATION_ALLOW_REMOTE=false` para desenvolvimento.
+
+Execute a etapa de migration separadamente:
+
+```bash
+pnpm db:migrate:status
+pnpm db:migrate:up
+pnpm db:migrate:down
+```
+
+`down` só deve ser usado quando a migration o declarar seguro e em ambiente
+controlado. O incremento 002-A1 cria apenas a tabela técnica de checksums e as
+tabelas internas do migrator; não cria schema de identidade ou tenancy. Uma
+migration aplicada é imutável: divergência do checksum bloqueia a execução e a
+correção deve ser uma nova migration.
 
 ## Desenvolvimento
 
@@ -122,7 +150,10 @@ pnpm check:compose
 pnpm typecheck
 pnpm test
 pnpm test:integration
+pnpm test:sqlite
+pnpm test:postgres
 pnpm build
+pnpm audit
 ```
 
 Ou execute a sequência completa:
@@ -137,8 +168,11 @@ pnpm check
 - `packages/domain` não depende de framework ou infraestrutura;
 - `packages/shared` contém somente contratos entre aplicações;
 - operações de banco ficam em `packages/database`;
+- Kysely, `pg` e `better-sqlite3` não podem escapar para o domínio;
+- a API pode usar apenas a superfície pública de saúde do banco e não pode
+  importar adapters ou o migrator;
 - endpoints de negócio futuros usarão `/api/v1`;
-- nenhuma migration é executada pelo frontend.
+- nenhuma migration é executada pelo frontend ou pelo startup normal da API.
 
 O script `pnpm check:boundaries` verifica essas restrições e ciclos entre packages.
 

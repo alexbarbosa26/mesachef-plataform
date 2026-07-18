@@ -12,6 +12,7 @@ const rawEnvironmentSchema = z
       .int()
       .min(100)
       .max(30_000),
+    DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50),
     DATABASE_PROVIDER: z.enum(['postgres', 'sqlite']),
     DATABASE_URL: z.string().trim().min(1),
     LOG_LEVEL: z.enum(['debug', 'error', 'fatal', 'info', 'silent', 'trace', 'warn']),
@@ -52,6 +53,7 @@ export type ApplicationConfig = Readonly<{
   database: Readonly<{
     connectionString: string;
     connectionTimeoutMs: number;
+    poolMax: number;
     provider: 'postgres' | 'sqlite';
   }>;
   logLevel: 'debug' | 'error' | 'fatal' | 'info' | 'silent' | 'trace' | 'warn';
@@ -116,6 +118,7 @@ export function loadApplicationConfig(
     database: Object.freeze({
       connectionString: parsed.data.DATABASE_URL,
       connectionTimeoutMs: parsed.data.DATABASE_CONNECTION_TIMEOUT_MS,
+      poolMax: parsed.data.DATABASE_POOL_MAX,
       provider: parsed.data.DATABASE_PROVIDER,
     }),
     logLevel: parsed.data.LOG_LEVEL,

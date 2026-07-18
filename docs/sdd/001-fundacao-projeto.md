@@ -2,9 +2,9 @@
 
 ## Status
 
-EM_VALIDACAO
+CONCLUIDA
 
-Autorizada pelo proprietário em 2026-07-18 e registrada como spec ativa no `EXECUTAR.md`. Este estado não libera nem inicia a SPEC 002.
+Concluída em 2026-07-18 após validação local com PostgreSQL 14.23 em Docker, pipeline completo e ciclo de indisponibilidade/recuperação do readiness. A conclusão não libera nem inicia a SPEC 002.
 
 ## Dependências
 
@@ -286,7 +286,7 @@ Variáveis de Docker local são documentadas separadamente no mesmo arquivo de e
 - [x] testes unitários passam.
 - [x] testes de integração passam.
 - [x] build passa.
-- [ ] PostgreSQL 14 sobe por Docker Compose.
+- [x] PostgreSQL 14 sobe por Docker Compose.
 - [x] API responde aos health checks.
 - [x] frontend abre a página inicial.
 - [x] `.env.example` está completo e sem secrets.
@@ -314,7 +314,7 @@ Rollback:
 
 ## 22. Riscos e decisões abertas
 
-- Docker pode não estar disponível no ambiente de execução; nesse caso, o critério PostgreSQL permanece pendente e a spec não é concluída.
+- A indisponibilidade anterior do Docker foi resolvida na execução de validação; PostgreSQL 14.23, health do container e recuperação do readiness foram confirmados localmente.
 - `node:sqlite` emite aviso experimental no Node 24; seu uso permanece auxiliar e deve ser reavaliado antes de qualquer persistência real.
 - CI inicial não está autorizado no escopo desta execução e permanece para decisão posterior.
 - ORM/query builder será decidido por ADR quando existir um primeiro caso de persistência.

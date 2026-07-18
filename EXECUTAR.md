@@ -42,7 +42,7 @@ project: MesaChef Platform
 method: SDD
 architecture: modular-monolith
 current_spec: "001"
-execution_mode: implementation
+execution_mode: validation
 auto_advance: false
 auto_commit: false
 auto_push: false
@@ -99,7 +99,7 @@ docs/skills/security
 | Ordem | Arquivo | Nome | Dependências | Estado |
 |---:|---|---|---|---|
 | 000 | `docs/sdd/000-visao-produto.md` | Visão do produto e escopo da reconstrução | Nenhuma | CONCLUIDA |
-| 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | EM_VALIDACAO |
+| 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | CONCLUIDA |
 | 002 | `docs/sdd/002-identity-access-multiempresa.md` | Autenticação, autorização e multiempresa | 001 | BLOQUEADA |
 | 003 | `docs/sdd/003-layout-navegacao.md` | Layout, navegação e design system | 001 e contratos iniciais da 002 | BLOQUEADA |
 | 004 | `docs/sdd/004-estoque.md` | Estoque e movimentações | 002 e 003 | BLOQUEADA |
@@ -130,7 +130,7 @@ Estados permitidos:
 active_spec:
   id: "001"
   file: "docs/sdd/001-fundacao-projeto.md"
-  state: "EM_VALIDACAO"
+  state: "CONCLUIDA"
   owner: "Alex"
   objective: "Criar a fundação técnica do monorepo."
 ```
@@ -530,7 +530,7 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 - [x] Criar conexão local segura.
 - [x] Criar testes mínimos.
 - [x] Validar build completo.
-- [ ] Validar PostgreSQL 14.
+- [x] Validar PostgreSQL 14.
 
 ---
 
@@ -540,19 +540,17 @@ ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são n
 last_execution:
   date: "2026-07-18"
   spec: "001"
-  mode: "implementation"
-  status: "EM_VALIDACAO"
-  summary: "Fundação técnica do monorepo implementada com web, API, packages, scripts, health checks, PostgreSQL 14 via Compose, SQLite auxiliar, testes e build; nenhum módulo de negócio foi criado."
+  mode: "validation"
+  status: "CONCLUIDA"
+  summary: "Fundação técnica validada integralmente com PostgreSQL 14.23 local em Docker, falha e recuperação do readiness, pipeline completo e auditoria de secrets; nenhum módulo de negócio foi criado."
   tests:
     - "pnpm install --frozen-lockfile: concluído sem alterações no lockfile."
     - "pnpm check: lint, limites arquiteturais, contrato do Compose, typecheck, 11 testes unitários, 2 testes de integração e build aprovados."
-    - "Smoke test da API: liveness, readiness SQLite, OpenAPI, correlation ID, headers de segurança e CORS aprovados."
-    - "Smoke test do comando raiz: web e API iniciadas simultaneamente."
-    - "Validação visual da web em desktop e viewport móvel, sem overflow horizontal e sem erros ou avisos no console."
-    - "Contrato estático do Compose PostgreSQL 14 aprovado."
-  blockers:
-    - "Docker não está instalado ou disponível neste ambiente; o container PostgreSQL 14 e o readiness contra PostgreSQL real ainda precisam ser validados."
-  next_recommended_action: "Executar o Compose e validar o readiness contra PostgreSQL 14 em ambiente local com Docker; atualizar as evidências da SPEC 001 sem iniciar a SPEC 002."
+    - "Docker Compose 5.3.0: postgres:14-alpine executado com PostgreSQL 14.23, pg_isready e health healthy."
+    - "API com PostgreSQL: live 200 e ready 200; banco parado: live 200 e ready 503 sanitizado; banco restaurado: ready 200 no mesmo processo."
+    - "Auditoria de 111 arquivos: nenhum secret, arquivo sensível versionado, migration de aplicação ou módulo de negócio fora do escopo."
+  blockers: []
+  next_recommended_action: "Manter a SPEC 002 bloqueada e aguardar autorização explícita do proprietário; não alterar automaticamente a spec ativa."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

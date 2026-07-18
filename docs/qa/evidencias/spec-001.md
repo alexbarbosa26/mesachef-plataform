@@ -3,11 +3,12 @@
 ## 1. Identificação
 
 - **Spec:** `docs/sdd/001-fundacao-projeto.md`
-- **Execução:** 2026-07-18
-- **Modo:** `implementation`
+- **Execuções:** 2026-07-18 — implementação e validação final
+- **Modo final:** `validation`
 - **Branch:** `feat/spec-001-foundation`
-- **Estado final proposto:** `EM_VALIDACAO`
-- **Commit:** não criado; a execução não possui autorização para commit.
+- **HEAD anterior à validação:** `0cbbaa4 feat(foundation): implementa fundacao tecnica do monorepo`
+- **Estado final:** `CONCLUIDA`
+- **Commit desta execução:** não criado; a execução não possui autorização para commit.
 - **Produção:** não acessada nem alterada.
 
 ## 2. Resumo da entrega
@@ -142,7 +143,26 @@ O arquivo `infra/docker/compose.yaml` foi criado com:
 
 `pnpm check:compose` passou para sintaxe YAML e invariantes do contrato.
 
-`pnpm db:config` não pôde ser executado porque Docker não está instalado ou acessível no `PATH` deste ambiente. Consequentemente, PostgreSQL 14 não foi iniciado e esse critério permanece pendente.
+Na validação final, o Docker Engine estava acessível e o serviço da fundação foi exercitado com o arquivo Compose versionado e o `.env` local ignorado pelo Git:
+
+- Docker Compose 5.3.0;
+- container `mesachef-platform-postgres-1` com imagem `postgres:14-alpine`;
+- PostgreSQL 14.23 confirmado pelo binário do container;
+- estado `running` e health `healthy`;
+- `pg_isready` confirmou que o servidor aceitava conexões;
+- publicação restrita a `127.0.0.1:5432`;
+- volume nomeado preservado durante toda a validação;
+- nenhuma instrução de criação ou alteração de tabela, migration ou escrita de negócio foi executada.
+
+A API compilada foi iniciada com provider `postgres` e validada no seguinte ciclo:
+
+| Estado | `/health/live` | `/health/ready` | Resultado |
+|---|---:|---:|---|
+| PostgreSQL saudável | 200 | 200 | banco `up`, provider `postgres` |
+| PostgreSQL parado | 200 | 503 | aplicação viva, banco `down`, payload sanitizado |
+| PostgreSQL reiniciado e `healthy` | 200 | 200 | banco `up` novamente no mesmo processo da API |
+
+O readiness recuperou na primeira tentativa após o health do container voltar. Os payloads não continham connection string, senha, SQL, stack, endereço ou porta do banco. O container PostgreSQL local permaneceu em execução e `healthy`; nenhum volume foi removido.
 
 ## 10. Critérios de aceite
 
@@ -154,7 +174,7 @@ O arquivo `infra/docker/compose.yaml` foi criado com:
 - [x] testes unitários passam.
 - [x] testes de integração passam.
 - [x] build passa.
-- [ ] PostgreSQL 14 sobe por Docker Compose.
+- [x] PostgreSQL 14 sobe por Docker Compose.
 - [x] API responde aos health checks.
 - [x] frontend abre a página inicial.
 - [x] `.env.example` está completo e sem secrets reais.
@@ -172,7 +192,9 @@ O arquivo `infra/docker/compose.yaml` foi criado com:
 - correlation ID é gerado pelo servidor;
 - CORS, Helmet, limite de body e redaction de headers sensíveis foram configurados;
 - frontend não importa database, PostgreSQL, SQLite ou Supabase;
-- lockfile e allowlist de build de dependência estão versionados.
+- lockfile e allowlist de build de dependência estão versionados;
+- varredura final de 111 arquivos não encontrou chaves privadas, tokens, JWTs, credenciais de provedores ou arquivos sensíveis versionados;
+- `.env` permanece ignorado e os arquivos `.env*.example` usam apenas placeholders locais.
 
 ## 12. Multiempresa
 
@@ -184,7 +206,6 @@ O arquivo `infra/docker/compose.yaml` foi criado com:
 
 ## 14. Limitações e pendências
 
-- falta executar o Compose e validar readiness contra PostgreSQL 14 real;
 - `node:sqlite` emite aviso experimental no Node 24 e permanece estritamente auxiliar;
 - CI não faz parte da autorização desta execução;
 - ORM/query builder foi deliberadamente adiado até existir caso de persistência e ADR;
@@ -193,4 +214,4 @@ O arquivo `infra/docker/compose.yaml` foi criado com:
 
 ## 15. Resultado
 
-A fundação está implementada e pronta para a validação externa do PostgreSQL 14. A SPEC 001 deve permanecer `EM_VALIDACAO`, e a SPEC 002 deve permanecer `BLOQUEADA` até nova autorização explícita e atendimento do critério Docker/PostgreSQL.
+A fundação foi implementada e validada integralmente, inclusive em PostgreSQL 14 real com falha e recuperação do readiness. Todos os critérios de aceite da SPEC 001 foram atendidos; seu estado final é `CONCLUIDA`. A SPEC 002 permanece `BLOQUEADA` e não foi iniciada.

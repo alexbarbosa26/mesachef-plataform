@@ -4,7 +4,7 @@
 
 - **Atualização:** 2026-07-18
 - **Spec ativa:** 001 — Fundação técnica
-- **Estado da spec:** `EM_VALIDACAO`
+- **Estado da spec:** `CONCLUIDA`
 - **Próxima spec:** 002 permanece `BLOQUEADA` e não foi iniciada
 
 Este registro concentra conflitos, lacunas de decisão e hipóteses encontradas na leitura das especificações, ADRs e do projeto de referência. Nenhum item deve ser resolvido por suposição silenciosa. A prioridade indica risco para decisões futuras, não autorização para avançar de spec.
@@ -126,13 +126,14 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Decisão aplicada:** sincronizar a spec para `EM_IMPLEMENTACAO` antes das alterações, completar suas seções obrigatórias e, após as verificações, registrá-la como `EM_VALIDACAO`, mantendo a SPEC 002 bloqueada.
 - **Evidência:** `docs/sdd/001-fundacao-projeto.md` e commit anterior `eb672a4` que liberou a execução no controlador.
 
-### PEND-001-002 — Validação do Docker/PostgreSQL 14
+### PEND-001-002 — Validação do Docker/PostgreSQL 14 — resolvida
 
-- **Prioridade:** Alta.
-- **Descrição:** Docker não está disponível no `PATH` do ambiente Codex usado nesta execução.
-- **Impacto:** o Compose pode ser implementado e revisado estaticamente, mas o critério de subir PostgreSQL 14 não pode ser considerado atendido sem execução real.
-- **Recomendação:** executar os comandos documentados em máquina com Docker Desktop/Engine e anexar a saída à evidência da SPEC 001.
-- **Decisão necessária:** nenhuma decisão arquitetural; é necessária validação externa antes de concluir a spec.
+- **Prioridade:** resolvida em 2026-07-18 na execução de validação.
+- **Descrição original:** Docker não estava acessível no ambiente da execução de implementação.
+- **Impacto original:** o Compose só havia sido revisado estaticamente, impedindo concluir o critério PostgreSQL 14.
+- **Resolução:** Docker Compose 5.3.0 iniciou e aguardou o container `postgres:14-alpine`; PostgreSQL 14.23 ficou `healthy`, aceitou conexões e sustentou o probe da API. Com o banco parado, live permaneceu 200 e ready passou a 503; após o reinício, ready voltou a 200 no mesmo processo.
+- **Evidência:** `docs/qa/evidencias/spec-001.md`, seções 6, 9 e 10.
+- **Decisão necessária:** nenhuma; a pendência está encerrada e nenhum volume foi removido.
 
 ### PEND-001-003 — ORM ou query builder
 

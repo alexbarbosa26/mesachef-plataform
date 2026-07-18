@@ -5,7 +5,7 @@
 - **Estado:** `EM_ESPECIFICACAO`
 - **Atualização:** 2026-07-18
 - **Modo desta revisão:** documentação e decomposição executável
-- **Pronta para implementação:** não
+- **Pronta para implementação:** não como iniciativa agregadora; somente a 002-A está `PRONTA_PARA_IMPLEMENTAR`
 - **Dependência concluída:** SPEC 001
 - **Próxima spec:** SPEC 003 permanece bloqueada
 
@@ -14,9 +14,11 @@ de RLS no PostgreSQL 14 foram concluídos e revisados; a mecânica RLS foi aceit
 humanamente e o gate técnico correspondente foi encerrado. A iniciativa está
 decomposta nas sub-specs executáveis em `docs/sdd/002/`, mas esta SPEC
 agregadora não pode mudar para `PRONTA_PARA_IMPLEMENTAR` ou `CONCLUIDA` enquanto
-decisões críticas e incrementos permanecerem abertos. A 002-A continua
-`EM_ESPECIFICACAO` por decisões próprias de persistência. Esta revisão não
-autoriza código, dependências, migrations físicas, produção ou interface.
+decisões críticas e incrementos permanecerem abertos. As decisões próprias de
+persistência da 002-A foram registradas e esse incremento está
+`PRONTA_PARA_IMPLEMENTAR`; 002-B–G mantêm o estado `BLOQUEADA`. Esta revisão é apenas
+documental e não autoriza código, dependências, migrations físicas, produção ou
+interface.
 
 ## 1. Contexto
 
@@ -96,8 +98,16 @@ Definir e, em execuções futuras explicitamente autorizadas, entregar de forma 
 - contexts, pools e roles de tenant/plataforma separados;
 - contexto ausente/inválido nega por padrão e desaparece após commit/rollback;
 - repositories continuam exigindo `TenantContext` e filtro explícito;
-- SPEC 002-A em `EM_ESPECIFICACAO` até resolver os gates próprios e receber
-  autorização explícita;
+- e-mail persistido como original e normalizado por algoritmo centralizado,
+  determinístico e independente de provedor;
+- checksum SHA-256 calculado sobre canonicalização `v1`, com metadados e
+  verificação fail-closed de migrations aplicadas;
+- política de tipos entre domínio, PostgreSQL e SQLite definida sem conversão de
+  dinheiro ou `numeric` para `number`;
+- migrations como fonte de verdade e futuro `db:verify` fail-closed para histórico,
+  checksums e objetos críticos do catálogo PostgreSQL;
+- SPEC 002-A em `PRONTA_PARA_IMPLEMENTAR`, sem implementação nesta revisão;
+- SPEC 002-B e posteriores mantêm o estado `BLOQUEADA`;
 - SPEC 003 mantida bloqueada.
 
 ## 5. Atores
@@ -148,7 +158,8 @@ Definir e, em execuções futuras explicitamente autorizadas, entregar de forma 
 - envio real de e-mail antes da escolha do provedor;
 - exclusão física ou anonimização de usuários e empresas;
 - integração com PostgreSQL de produção;
-- qualquer implementação enquanto esta SPEC permanecer `EM_ESPECIFICACAO`.
+- qualquer implementação fora de uma sub-spec explicitamente
+  `PRONTA_PARA_IMPLEMENTAR`, ativa e autorizada para execução.
 
 ## 8. Linguagem ubíqua e bounded contexts
 
@@ -187,13 +198,21 @@ Casos de uso dependem de portas. O domínio não importa Fastify, cookies, Kysel
 Identidade global com:
 
 - `id` opaco e não sequencial;
-- `email` para comunicação e `normalizedEmail` para unicidade;
+- `emailOriginal` para exibição e auditoria e `emailNormalized` para
+  autenticação e unicidade;
 - `displayName`;
 - `status`: `PENDING_ACTIVATION`, `ACTIVE`, `BLOCKED` ou `DEACTIVATED`;
 - `authorizationVersion` monotônica;
 - `createdAt`, `updatedAt`, `blockedAt` e motivo administrativo quando aplicável.
 
 Um usuário pode existir temporariamente sem membership durante convite, bootstrap ou administração de plataforma. Acesso operacional exige membership ativa.
+
+O e-mail é validado antes da persistência. A normalização remove espaços apenas
+nas extremidades, aplica Unicode NFC, converte para minúsculas de forma
+independente de locale e normaliza o domínio por IDNA quando necessário. Não
+remove pontos do local-part, aliases com `+` nem aplica regras específicas de
+provedor. A regra fica centralizada em componente de domínio ou serviço
+compartilhado testável; `citext` não é sua fonte principal.
 
 ### 9.2 `PasswordCredential`
 
@@ -282,7 +301,10 @@ Registro imutável com:
 
 ## 10. Invariantes
 
-1. `normalizedEmail` é globalmente único; a regra de normalização é única e aplicada antes da consulta ou persistência.
+1. `emailNormalized` é globalmente único; antes da consulta ou persistência a
+   regra centralizada valida o formato, remove espaços das extremidades, aplica
+   NFC, lowercase independente de locale e IDNA ao domínio, sem remover pontos,
+   aliases `+` ou aplicar semântica específica de provedor.
 2. Senha nunca é persistida, retornada ou registrada em claro.
 3. Uma membership é única por `(userId, companyId)` e nunca muda de usuário ou empresa.
 4. Usuário bloqueado ou desativado não autentica e não mantém sessão válida.
@@ -409,9 +431,20 @@ A matriz exata, códigos de permissão, ações delegáveis e eventual papel cus
 - PostgreSQL 14 é o gate oficial para migrations, constraints, concorrência, locks e RLS;
 - SQLite é auxiliar e não comprova isolamento final;
 - migrations são incrementais, versionadas, revisadas e testadas em banco vazio e representativo;
+- migrations são a fonte de verdade do schema e alterações manuais são proibidas;
+- checksum usa SHA-256 sobre bytes UTF-8 canonicalizados pela versão `v1`: remove
+  BOM UTF-8, converte CRLF/CR em LF e preserva todo o conteúdo restante;
+- o histórico registra migration, checksum, versão de canonicalização, data,
+  versão da aplicação e versão da ferramenta; divergência bloqueia a execução;
+- o futuro `db:verify` falha diante de drift no histórico/checksums ou nos objetos
+  críticos do catálogo PostgreSQL e nunca corrige o schema automaticamente;
 - transações protegem regras de último administrador, último superadmin e alterações de autorização;
 - domínio não depende de ORM/query builder;
-- embora esta SPEC não modele dinheiro, qualquer `numeric` futuro deve permanecer decimal exato e nunca `float`.
+- dinheiro no domínio usa `MoneyDecimal` baseado em `BigInt` com escala 4;
+  PostgreSQL usa `numeric(24,4)` e SQLite texto decimal canônico;
+- drivers nunca convertem `numeric` em JavaScript `number`; UUID, timestamps e
+  JSON seguem os mappings e validações definidos na 002-A, sem tipos de Kysely ou
+  drivers escaparem da infraestrutura.
 
 ### 13.3 Operação e observabilidade
 
@@ -637,11 +670,18 @@ Esta seção descreve intenção. **Nenhuma migration definitiva foi criada.** A
 
 1. Infraestrutura de migrations
    - histórico do migrator Kysely;
-   - tabela auxiliar com nome, versão do formato canônico e checksum SHA-256;
-   - validação fail-closed antes de qualquer migration pendente.
+   - tabela auxiliar com migration, checksum SHA-256, `canonicalization_version`
+     (`v1`), data, versão da aplicação e versão da ferramenta;
+   - canonicalização UTF-8 que remove BOM, converte CRLF/CR em LF e preserva o
+     restante do conteúdo;
+   - validação fail-closed de todas as migrations aplicadas antes de qualquer
+     migration pendente;
+   - execução separada do deploy, sem migration automática no startup da API;
+   - futuro `db:verify` para histórico/checksums e tabelas, colunas, tipos,
+     constraints, índices, policies RLS, roles e grants no catálogo PostgreSQL.
 2. Schema `identity`
-   - `users`: UUID, e-mail exibível, chave normalizada única, status, versão e
-     timestamps;
+   - `users`: UUID, `email_original`, `email_normalized` com unicidade, status,
+     versão e timestamps;
    - `password_credentials`: FK única, hash e metadados do algoritmo, sem
      implementar validação de senha.
 3. Schema `tenancy`
@@ -715,6 +755,8 @@ Esta seção descreve intenção. **Nenhuma migration definitiva foi criada.** A
 - testar do zero e sobre base representativa no PostgreSQL 14;
 - `down` somente quando seguro; rollback operacional padrão é forward fix;
 - migration não roda automaticamente no startup de produção;
+- migrations são a fonte de verdade; migration aplicada é imutável e correção
+  ou drift exige nova migration, nunca edição ou reparo automático;
 - role de migration é distinta da role da aplicação;
 - nenhum `DROP`, limpeza de volume ou alteração de produção sem autorização e backup;
 - adapter SQLite, se criado, é auxiliar e documenta recursos não equivalentes, especialmente RLS e concorrência.
@@ -747,9 +789,9 @@ bloqueada e só começa após os gates anteriores.
 ### SPEC 002-A — Persistência e migrations de identidade
 
 - **Documento:** `docs/sdd/002/002-a-persistencia-migrations.md`.
-- **Estado:** `EM_ESPECIFICACAO`.
-- **Entrada:** ADRs 0004/0006 e spikes aceitos; decisões críticas de checksum,
-  tipos/drift e normalização de e-mail ainda precisam ser resolvidas.
+- **Estado:** `PRONTA_PARA_IMPLEMENTAR`.
+- **Entrada:** ADRs 0004/0006 e spikes aceitos; decisões críticas de normalização
+  de e-mail, checksum, tipos e detecção de drift registradas.
 - **Entrega:** adapter Kysely, migrations/checksum, tipos, schema inicial de
   identidade/tenancy, repositories, transações, contexts, roles, RLS e testes.
 - **Não inclui:** login, validação de senha, sessão HTTP, endpoints, frontend ou
@@ -913,7 +955,8 @@ Com empresas A e B, usuários distintos e um usuário com duas memberships:
 - [ ] Retenção e acesso à auditoria definidos.
 - [x] Sub-specs A–G e ordem de dependência documentadas.
 - [ ] Contratos de cada incremento aprovados antes de sua implementação.
-- [ ] Formato canônico de checksum, estratégia de tipos/drift e normalização de
+- [x] Contratos e decisões de persistência próprios da 002-A aprovados.
+- [x] Formato canônico de checksum, estratégia de tipos/drift e normalização de
   e-mail aprovados para a 002-A.
 
 ### 22.2 Aceite funcional futuro
@@ -942,8 +985,8 @@ Com empresas A e B, usuários distintos e um usuário com duas memberships:
 
 Nenhum rollout é autorizado por esta revisão. Quando houver autorização futura:
 
-1. resolver os gates documentais próprios da 002-A e obter autorização explícita;
-2. entregar e validar 002-A a 002-G sequencialmente, aplicando a mecânica RLS
+1. obter autorização de implementação e entregar a 002-A conforme seu documento;
+2. validar a 002-A e então entregar 002-B a 002-G sequencialmente, aplicando a mecânica RLS
    aceita no schema definitivo;
 3. aplicar migrations por estratégia expandir/backfill/validar/contrair em ambiente não produtivo;
 4. criar catálogo de permissões por seed determinística;
@@ -973,7 +1016,7 @@ Não haverá sincronização silenciosa de credenciais do legado nem conexão co
 
 | Tema | Decisão | Efeito |
 |---|---|---|
-| ADR 0004 | `ACCEPTED` após spike com Kysely | estratégia de persistência definida; não autoriza a SPEC 002-A |
+| ADR 0004 | `ACCEPTED` após spike com Kysely, complementada pelas decisões de checksum, tipos e drift | estratégia de persistência e gates documentais da 002-A definidos |
 | ADR 0005 | `ACCEPTED` | sessão opaca sem refresh token passa a ser decisão arquitetural |
 | ADR 0006 | `ACCEPTED` | modelo multiempresa/RBAC e mecânica RLS transacional são decisões arquiteturais aceitas |
 | Usuário e empresa | associação muitos-para-muitos por `Membership` | encerra `DEC-002-002` quanto à cardinalidade |
@@ -984,7 +1027,11 @@ Não haverá sincronização silenciosa de credenciais do legado nem conexão co
 | Evidência de isolamento | SQLite é insuficiente | validação final ocorre no PostgreSQL 14 |
 | RLS PostgreSQL | role não-owner/`NOSUPERUSER`/`NOBYPASSRLS`, `ENABLE` + `FORCE`, `USING` + `WITH CHECK` e `set_config(..., true)` transacional | encerra o gate técnico de isolamento, sem substituir autorização |
 | Planos de acesso | contexts, pools, roles e repositories tenant/plataforma separados | operações globais iteram tenants ou usam caminho global auditado |
-| Controlador | SPEC 002 e 002-A em especificação; 002-B–G e 003 bloqueadas | nenhuma implementação ou avanço autorizado |
+| Normalização de e-mail | persistir original e normalizado; trim, NFC, lowercase independente de locale e IDNA no domínio; preservar pontos e `+`; sem regra de provedor ou `citext` como fonte | autenticação e unicidade usam uma representação determinística e testável |
+| Checksum | SHA-256 sobre UTF-8 canonicalizado por `v1`, removendo BOM e normalizando quebras para LF; metadados completos e falha por divergência | migration aplicada é imutável e a API não executa migrations no startup |
+| Tipos | `MoneyDecimal`/`BigInt` escala 4, mappings explícitos de decimal, UUID, timestamp UTC e JSON validado | `numeric` nunca vira `number` e tipos de infraestrutura não escapam ao domínio |
+| Drift | migrations são a fonte de verdade; futuro `db:verify` verifica histórico, checksums e catálogo PostgreSQL sem corrigir automaticamente | drift falha e sua correção exige nova migration |
+| Controlador | 002-A `PRONTA_PARA_IMPLEMENTAR` e próxima spec ativa; SPEC 002 em especificação; 002-B–G e 003 bloqueadas | esta revisão não implementa código; somente a próxima execução explicitamente autorizada pode iniciar a 002-A |
 
 ### 25.2 Dúvidas e decisões restantes
 
@@ -998,12 +1045,10 @@ Não haverá sincronização silenciosa de credenciais do legado nem conexão co
 | DEC-002-010 | Alta | recuperação de senha | escolher provedor de e-mail, origem de URL, bounce e suporte | 002-B/E |
 | DEC-002-011 | Alta | papéis customizados | suportar no schema e adiar UI/criação funcional | 002-D |
 | DEC-002-012 | Alta | auditoria | definir retenção, leitura, exportação e dados pessoais | 002-E |
-| DEC-002-013 | Alta | normalização de e-mail | aprovar algoritmo, Unicode e política de alteração | 002-A |
 | DEC-002-014 | Alta | último admin de empresa bloqueada | preservar admin ou permitir exceção somente ao bloquear tenant | 002-C/D |
 | DEC-002-015 | Média | sessões do usuário | decidir se a primeira versão lista dispositivos/sessões individuais | 002-B/F |
 | DEC-002-016 | Média | mudança de empresa | confirmar seleção automática quando houver exatamente uma membership | 002-C/F |
 | DEC-002-017 | Média | dados cadastrais da empresa | definir campos mínimos sem antecipar fiscal/faturamento | 002-C |
-| DEC-002-018 | Crítica | checksum canônico e tipos de tabela | aprovar representação determinística/versionada para SHA-256 e estratégia de geração/manutenção com detecção de drift em `packages/database` | 002-A |
 | DEC-002-019 | Média | performance RLS, PgBouncer e failover | manter fora do escopo inicial e criar gates próprios antes de pré-produção quando a topologia estiver definida | 002-G/pré-produção |
 
 ## 26. Riscos
@@ -1032,8 +1077,10 @@ agregador da iniciativa. As ADRs 0004, 0005 e 0006 foram aceitas; os spikes de
 persistência e RLS foram concluídos no PostgreSQL 14 e a mecânica RLS foi aceita
 humanamente. O gate técnico de isolamento está encerrado.
 
-A iniciativa continua **não pronta para implementação integral**. A 002-A está
-`EM_ESPECIFICACAO`, pois normalização de e-mail, representação canônica do
-checksum e estratégia de tipos/drift afetam diretamente a primeira migration.
-002-B–G e a SPEC 003 permanecem `BLOQUEADA`. Nenhum estado avança sem resolução
-dos gates próprios e autorização humana explícita.
+A iniciativa continua **não pronta para implementação integral** e a SPEC 002
+permanece `EM_ESPECIFICACAO`. As decisões de normalização de e-mail, checksum,
+tipos e detecção de drift encerraram os últimos bloqueios críticos próprios da
+002-A, que passa a `PRONTA_PARA_IMPLEMENTAR`. A pendência futura de performance
+RLS, PgBouncer e failover permanece aberta sem bloquear esse primeiro incremento.
+002-B–G e a SPEC 003 mantêm o estado `BLOQUEADA`; nenhum deles avança sem concluir os
+gates anteriores e receber autorização humana explícita.

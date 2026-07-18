@@ -41,8 +41,8 @@ O agente não deve iniciar a próxima spec automaticamente apenas porque termino
 project: MesaChef Platform
 method: SDD
 architecture: modular-monolith
-current_spec: "002"
-execution_mode: documentation
+current_spec: "002-A"
+execution_mode: implementation
 auto_advance: false
 auto_commit: false
 auto_push: false
@@ -52,6 +52,10 @@ production_database: "PostgreSQL 14"
 development_database: "SQLite ou PostgreSQL 14 local"
 preproduction_database: "PostgreSQL 14"
 ```
+
+O modo acima prepara a próxima execução da 002-A. Ele não autoriza
+retroativamente código ou migrations nesta revisão documental e não elimina a
+necessidade de instrução explícita do usuário para iniciar a implementação.
 
 ### Modos possíveis
 
@@ -128,13 +132,16 @@ Estados permitidos:
 
 ```yaml
 active_spec:
-  id: "002"
-  file: "docs/sdd/002-identity-access-multiempresa.md"
-  state: "EM_ESPECIFICACAO"
+  id: "002-A"
+  file: "docs/sdd/002/002-a-persistencia-migrations.md"
+  state: "PRONTA_PARA_IMPLEMENTAR"
   owner: "Alex"
-  objective: "Manter a SPEC 002 como agregador, resolver seus gates documentais e executar os incrementos A-G somente mediante autorização própria."
-  increments:
-    "002-A": "EM_ESPECIFICACAO"
+  objective: "Implementar, em execução futura explicitamente autorizada, somente a persistência e as migrations de identidade definidas na 002-A."
+  parent_spec:
+    id: "002"
+    state: "EM_ESPECIFICACAO"
+  increment_states:
+    "002-A": "PRONTA_PARA_IMPLEMENTAR"
     "002-B": "BLOQUEADA"
     "002-C": "BLOQUEADA"
     "002-D": "BLOQUEADA"
@@ -559,9 +566,11 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 - [x] Revisar humanamente o relatório e registrar na ADR 0006 a forma de implementação da RLS.
 - [x] Encerrar o gate técnico de RLS, preservando performance, PgBouncer e failover como riscos futuros separados.
 - [x] Criar o índice e as sub-specs executáveis 002-A a 002-G.
-- [ ] Resolver normalização de e-mail, formato canônico de checksum e estratégia de tipos/drift da 002-A.
+- [x] Resolver normalização de e-mail, formato canônico de checksum, política de tipos e detecção de drift da 002-A.
+- [x] Encerrar `PEND-002-008` e `PEND-002-009` e promover somente a 002-A para `PRONTA_PARA_IMPLEMENTAR`.
+- [x] Preparar 002-A como spec ativa e o modo `implementation` para a próxima execução, sem implementar nesta revisão documental.
 - [ ] Resolver as decisões críticas da SPEC 002.
-- [ ] Autorizar explicitamente o primeiro incremento de implementação.
+- [ ] Executar a 002-A em uma execução de implementação explicitamente autorizada.
 
 ---
 
@@ -570,22 +579,22 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 ```yaml
 last_execution:
   date: "2026-07-18"
-  spec: "002"
+  spec: "002-A"
   mode: "documentation"
-  status: "EM_ESPECIFICACAO"
-  summary: "Aceite humano da mecânica PostgreSQL RLS formalizado na ADR 0006 e gate técnico encerrado. Criados índice e sub-specs executáveis 002-A a 002-G. A 002-A permanece EM_ESPECIFICACAO por normalização de e-mail, checksum canônico e estratégia de tipos/drift; 002-B a 002-G e SPEC 003 permanecem BLOQUEADAS. Nenhum código, dependency, migration física, banco, produção ou commit foi alterado."
+  status: "PRONTA_PARA_IMPLEMENTAR"
+  summary: "Decisões humanas de normalização de e-mail, checksum SHA-256/canonicalização v1, política de tipos e detecção de drift registradas. PEND-002-008 e PEND-002-009 encerradas; não resta bloqueio crítico de persistência ou isolamento da 002-A. A 002-A passa a PRONTA_PARA_IMPLEMENTAR e torna-se a spec ativa para a próxima execução em modo implementation. A SPEC 002 permanece EM_ESPECIFICACAO; 002-B a 002-G e SPEC 003 permanecem BLOQUEADAS. Nenhum código, dependency, migration física, banco, produção ou commit foi alterado."
   tests:
-    - "Validação estrutural: 7 sub-specs com as 20 seções obrigatórias; índice separado criado."
-    - "git diff --check e varredura de whitespace/Markdown: aprovados; avisos LF/CRLF do Windows sem erro."
-    - "Escopo: 6 documentos existentes alterados e 8 documentos novos; nenhum arquivo de aplicação, migration, manifest, lockfile ou spike alterado."
-    - "Auditoria estática de secrets: nenhum padrão de credencial encontrado nos documentos da execução."
+    - "git diff --check: aprovado; apenas avisos LF/CRLF esperados no Windows."
+    - "Validação estrutural: 7 arquivos documentais/controladores, fences Markdown e whitespace aprovados."
+    - "Escopo: nenhum código de aplicação, dependency, manifest, lockfile, spike ou migration física alterado."
+    - "Auditoria estática de secrets: aprovada."
+    - "Lint, typecheck, testes de runtime, build, Docker e banco: N/A nesta execução exclusivamente documental."
   blockers:
-    - "PEND-002-008: normalização global de e-mail antes da primeira migration de usuário."
-    - "PEND-002-009: representação canônica/versionada do checksum e estratégia verificável de tipos/drift."
-    - "Matriz/delegação RBAC, MFA/bootstrap, recuperação e auditoria continuam como gates dos incrementos posteriores."
+    - "Nenhum bloqueio crítico de persistência ou isolamento permanece para iniciar a 002-A."
+    - "Matriz/delegação RBAC, MFA/bootstrap, recuperação e auditoria continuam como gates da SPEC 002 e dos incrementos posteriores, sem bloquear a 002-A."
   future_risks:
-    - "PEND-002-010: performance RLS, PgBouncer e failover exigem validação futura separada."
-  next_recommended_action: "Decidir PEND-002-008 e PEND-002-009, atualizar ADR 0004/002-A e, somente então, avaliar humanamente a mudança da 002-A para PRONTA_PARA_IMPLEMENTAR. Manter SPEC 002 agregadora e SPEC 003 sem avanço automático."
+    - "PEND-002-010: performance RLS, PgBouncer e failover exigem validação futura separada e não bloqueiam a implementação inicial."
+  next_recommended_action: "Em nova execução explicitamente autorizada, implementar somente a 002-A, começando pelos contratos de MoneyDecimal, normalização de e-mail, infraestrutura Kysely/migrator com checksum v1 e db:verify, e validando migrations/RLS no PostgreSQL 14. Não iniciar a 002-B nem avançar a SPEC 002 ou a SPEC 003."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

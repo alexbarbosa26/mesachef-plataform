@@ -7,19 +7,22 @@
 - **Aceite de persistência:** 2026-07-18 — ADR 0004 aceita após revisão do spike Kysely
 - **Aceite PostgreSQL RLS:** 2026-07-18 — mecanismo validado pelo spike e aceito humanamente na ADR 0006
 - **Decomposição executável:** 2026-07-18 — sub-specs 002-A a 002-G criadas
-- **Branch observada:** `docs/spec-002-execution-plan`
+- **Fechamento dos gates da 002-A:** 2026-07-18 — e-mail, checksum, tipos e drift aprovados
+- **Branch observada:** `docs/spec-002a-readiness`
 - **Modo:** `documentation`
-- **Spec autorizada:** 002
-- **Estado resultante:** `EM_ESPECIFICACAO`
+- **Spec autorizada:** 002-A
+- **Estado resultante da 002-A:** `PRONTA_PARA_IMPLEMENTAR`
+- **Estado resultante da SPEC 002:** `EM_ESPECIFICACAO`
 - **Commit:** não criado; não autorizado
 - **Produção:** não acessada
 - **Código/migrations nesta execução:** nenhum; módulos, spikes, dependencies e migrations físicas não alterados
 
 ## 2. Objetivo da execução
 
-Formalizar o aceite humano da mecânica PostgreSQL RLS, encerrar seu gate
-técnico, criar sub-specs executáveis 002-A a 002-G e preparar documentalmente
-somente a 002-A para futura implementação, sem código ou migrations físicas.
+Registrar as decisões humanas de normalização de e-mail, checksum de migrations,
+política de tipos e detecção de drift; encerrar `PEND-002-008` e
+`PEND-002-009`; avaliar e formalizar a prontidão da 002-A sem código ou
+migrations físicas.
 
 ## 3. Fontes lidas integralmente
 
@@ -34,6 +37,14 @@ somente a 002-A para futura implementação, sem código ou migrations físicas.
   - `mapa-banco-dados.md`;
   - `plano-migracao.md`;
 - `docs/qa/pendencias.md`.
+
+Para o fechamento dos gates da 002-A também foram relidos integralmente:
+
+- `docs/sdd/002/README.md` e `docs/sdd/002/002-a-persistencia-migrations.md`;
+- ADRs 0002, 0004 e 0006;
+- os relatórios dos spikes Kysely e PostgreSQL RLS;
+- este registro de evidências;
+- as skills relacionadas de arquitetura, DDD, segurança, Clean Code e testes.
 
 ## 4. Skills aplicadas
 
@@ -117,9 +128,9 @@ contexto, objetivo, dependências, entradas, escopo, fora de escopo, modelo,
 invariantes, requisitos, persistência, segurança, contratos, migrations quando
 aplicável, testes, aceite, gate, rollback e pendências.
 
-- 002-A: `EM_ESPECIFICACAO`;
+- 002-A: `PRONTA_PARA_IMPLEMENTAR`;
 - 002-B a 002-G: `BLOQUEADA`;
-- nenhum incremento foi implementado ou autorizado.
+- nenhum incremento foi implementado nesta revisão.
 
 ## 9. Validações desta execução
 
@@ -130,7 +141,7 @@ Como a execução é exclusivamente documental:
 - banco e Docker: não acessados;
 - validações aplicáveis: estrutura documental, consistência de status, escopo do diff, ausência de arquivos de aplicação/migration e busca por secrets.
 
-Os comandos e resultados finais desta nova revisão são registrados na seção 19.
+Os comandos e resultados finais desta nova revisão são registrados na seção 21.
 
 ## 10. Segurança e multiempresa
 
@@ -145,17 +156,17 @@ Os comandos e resultados finais desta nova revisão são registrados na seção 
 
 ## 11. Limitações e bloqueios
 
-A SPEC continua não pronta porque ainda dependem de decisão:
+A SPEC 002 agregadora continua não pronta porque ainda dependem de decisão em
+incrementos posteriores:
 
 - matriz RBAC detalhada, delegação e papéis customizados;
 - MFA, TTL, senha e bootstrap;
 - provedor de recuperação;
-- retenção/privacidade da auditoria;
-- normalização e alteração de e-mail;
-- formato canônico do checksum e estratégia de tipos/drift para a 002-A.
+- retenção/privacidade da auditoria.
 
 Performance RLS, PgBouncer e failover permanecem risco futuro separado; não
-reabrem o gate técnico de isolamento encerrado.
+reabrem o gate técnico de isolamento encerrado nem bloqueiam a implementação
+inicial da 002-A.
 
 As pendências detalhadas estão em `docs/qa/pendencias.md`, seção 8.
 
@@ -445,7 +456,7 @@ Nenhuma decisão ou documento desta seção autoriza instalar dependência, cria
 migration física, alterar aplicação, acessar produção, criar commit ou avançar
 de spec.
 
-## 19. Validação estática da formalização e sub-specs
+## 19. Validação estática da formalização e sub-specs — registro histórico
 
 - estrutura: sete sub-specs encontradas, cada uma com as 20 seções obrigatórias;
 - índice: `docs/sdd/002/README.md` registra estados, dependências, readiness e
@@ -468,6 +479,119 @@ de spec.
   execução altera somente Markdown/controlador documental;
 - Git/produção: nenhum commit, push, deploy ou acesso a produção.
 
-**Resultado:** documentação consistente com o aceite humano e com os limites da
-execução. O resultado não torna a 002-A pronta enquanto `PEND-002-008` e
-`PEND-002-009` permanecerem abertas.
+**Resultado naquele momento:** documentação consistente com o aceite humano e
+com os limites daquela execução. O resultado ainda não tornava a 002-A pronta
+enquanto `PEND-002-008` e `PEND-002-009` permaneciam abertas.
+
+## 20. Fechamento humano dos gates da 002-A — 2026-07-18
+
+Esta seção é posterior e substitui, somente quanto ao estado atual, as menções
+históricas das seções 8, 11, 18 e 19 que registravam `PEND-002-008` e
+`PEND-002-009` abertas. Nenhuma evidência histórica foi apagada.
+
+### 20.1 Normalização de e-mail
+
+1. Persistir `email_original` para exibição e auditoria.
+2. Persistir `email_normalized` para autenticação e unicidade.
+3. Remover espaços no início e no fim.
+4. Aplicar normalização Unicode NFC.
+5. Converter o endereço para minúsculas de forma independente de locale.
+6. Normalizar o domínio com IDNA quando necessário.
+7. Criar unicidade sobre `email_normalized`.
+8. Não remover pontos do local-part.
+9. Não remover aliases com `+`.
+10. Não aplicar regras específicas de Gmail ou de qualquer provedor.
+11. Não utilizar PostgreSQL `citext` como fonte principal da regra.
+12. Validar o formato antes da persistência.
+13. Centralizar a normalização em componente de domínio ou serviço compartilhado testável.
+
+### 20.2 Checksum de migrations
+
+1. Utilizar SHA-256.
+2. Interpretar o arquivo como UTF-8.
+3. Remover BOM UTF-8.
+4. Normalizar CRLF e CR para LF.
+5. Preservar todo o restante do conteúdo.
+6. Registrar `canonicalization_version`, inicialmente `v1`.
+7. Registrar migration, checksum, data, versão da aplicação e versão da ferramenta.
+8. Bloquear a execução quando o checksum divergir.
+9. Proibir edição de migration aplicada.
+10. Exigir nova migration para qualquer correção.
+11. Executar migrations em etapa separada do deploy.
+12. Proibir migration automática durante a inicialização normal da API.
+
+### 20.3 Política de tipos
+
+1. Dinheiro no domínio usa `MoneyDecimal`, baseado em `BigInt`, com escala 4.
+2. PostgreSQL armazena dinheiro como `numeric(24,4)`.
+3. SQLite armazena dinheiro como texto decimal canônico.
+4. O driver nunca converte `numeric` para JavaScript `number`.
+5. PostgreSQL utiliza UUID nativo.
+6. SQLite utiliza texto validado para UUID.
+7. PostgreSQL utiliza `timestamptz`.
+8. SQLite utiliza ISO 8601 em texto.
+9. Datas são tratadas internamente em UTC.
+10. JSON é validado por schema antes de entrar no domínio.
+11. Tipos do Kysely e dos drivers não escapam da infraestrutura para o domínio.
+
+### 20.4 Detecção de drift
+
+1. Migrations são a fonte de verdade do schema.
+2. Alterações manuais no schema são proibidas.
+3. Será criado futuramente o comando `db:verify`.
+4. `db:verify` verifica estado das migrations e checksums.
+5. No PostgreSQL, verifica objetos críticos do catálogo.
+6. Verifica tabelas, colunas, tipos, constraints, índices, policies RLS, roles e grants.
+7. Drift causa falha.
+8. Drift não é corrigido automaticamente.
+9. A correção ocorre por nova migration.
+10. SQLite não é prova de paridade completa do schema.
+
+### 20.5 Avaliação de prontidão
+
+- `PEND-002-008`: `ENCERRADA`;
+- `PEND-002-009`: `ENCERRADA`;
+- `PEND-002-010`: aberta como gate futuro de performance, PgBouncer e failover,
+  sem bloquear a implementação inicial;
+- não foi identificada outra decisão crítica de persistência ou isolamento que
+  bloqueie a entrada da 002-A;
+- 002-A: `PRONTA_PARA_IMPLEMENTAR`;
+- SPEC 002: `EM_ESPECIFICACAO`;
+- 002-B a 002-G: `BLOQUEADA`;
+- SPEC 003: `BLOQUEADA`;
+- spec ativa preparada no controlador para a próxima execução: 002-A, modo
+  `implementation`;
+- código, dependências, migrations físicas, banco, produção e Git não foram
+  alterados nesta revisão documental.
+
+O fluxo funcional futuro de alteração/revalidação de e-mail e a escolha interna
+entre tipos de tabela manuais, gerados ou introspectados não impedem a migration
+inicial: o primeiro pertence a incremento posterior e o segundo é detalhe
+substituível de infraestrutura, subordinado às migrations, aos limites
+arquiteturais e ao `db:verify`.
+
+## 21. Validação documental do fechamento da 002-A
+
+- branch confirmada: `docs/spec-002a-readiness`;
+- `git diff --check`: aprovado, sem erro de whitespace; somente avisos esperados
+  de normalização LF/CRLF configurada no Windows;
+- escopo: exatamente sete arquivos documentais/controladores alterados, todos
+  previstos na solicitação;
+- aplicação e infraestrutura: nenhum arquivo em `apps`, `packages`, `infra`,
+  `scripts` ou `spikes`, nenhum manifest/lockfile e nenhuma migration física
+  alterados;
+- estrutura: fences Markdown balanceadas e ausência de whitespace final nos
+  sete arquivos;
+- decisões/estados: assertions estáticas confirmaram 002-A
+  `PRONTA_PARA_IMPLEMENTAR`, SPEC 002 `EM_ESPECIFICACAO`, 002-B–G e SPEC 003
+  `BLOQUEADA`, além de `PEND-002-008`/`PEND-002-009` encerradas e
+  `PEND-002-010` não bloqueadora;
+- auditoria estática de secrets: nenhum padrão de chave privada, access key,
+  token conhecido ou URI PostgreSQL com credencial encontrado no diff;
+- lint, typecheck, testes de runtime, build, Docker e banco: `N/A`, porque a
+  execução foi exclusivamente documental e não alterou código/configuração;
+- Git e produção: nenhum commit, push, deploy ou acesso a banco/produção.
+
+**Resultado atual:** não existe decisão crítica de persistência ou isolamento
+remanescente para o escopo inicial da 002-A. A prontidão documental está
+aprovada, sem antecipar implementação ou liberar qualquer incremento seguinte.

@@ -4,7 +4,10 @@
 
 ACCEPTED
 
-Aceita por decisão humana em 2026-07-18 após revisão do spike com Kysely. O aceite define a estratégia de persistência e a política de integridade das migrations, mas não autoriza implementar a SPEC 002-A nem remove o gate do spike de RLS.
+Aceita por decisão humana em 2026-07-18 após revisão do spike com Kysely. O
+aceite define a estratégia de persistência, a política de integridade das
+migrations e os limites de tipos/drift. A ADR não autoriza implementação por si
+só; os gates de readiness pertencem à SPEC 002-A e ao `EXECUTAR.md`.
 
 ## Data
 
@@ -24,7 +27,8 @@ Aceita por decisão humana em 2026-07-18 após revisão do spike com Kysely. O a
 - **Bancos:** manter PostgreSQL 14 como banco oficial e SQLite somente como auxiliar para cenários compatíveis.
 - **Integridade:** complementar o migrator do Kysely com checksum SHA-256 e imutabilidade de migrations aplicadas.
 - **Operação:** executar migrations como etapa separada de deploy; a API não executa migrations no startup.
-- **Limite:** o aceite não autoriza instalar dependências, criar migrations definitivas ou iniciar a SPEC 002-A nesta execução. A 002-A permanece bloqueada pelo spike de RLS.
+- **Limite:** o aceite não autoriza instalar dependências, criar migrations
+  definitivas ou iniciar a SPEC 002-A durante uma execução apenas documental.
 
 ## Evidência técnica do spike — 2026-07-18
 
@@ -41,8 +45,10 @@ geração/manutenção dos tipos de tabela também continua sem aceite.
 
 **Resultado para esta ADR:** o responsável revisou a evidência, aceitou Kysely e
 fechou a lacuna do migrator nativo com uma camada obrigatória de checksum
-SHA-256. O mecanismo de geração ou manutenção dos tipos de tabela permanece uma
-decisão interna de infraestrutura, sem permissão para vazar ao domínio.
+SHA-256. O mecanismo de geração ou manutenção dos tipos de tabela é uma decisão
+interna e substituível da infraestrutura, sem permissão para vazar ao domínio.
+As migrations são a fonte de verdade, e drift será detectado por verificação
+explícita do histórico/checksums e do catálogo PostgreSQL.
 Evidências completas: `docs/qa/spikes/spec-002-kysely-persistence.md`.
 
 ## Contexto
@@ -178,7 +184,8 @@ Esta ADR não define o schema físico da SPEC 002. Seu aceite não autoriza inst
 15. Divergência entre o conteúdo atual e o checksum registrado de uma migration aplicada causa falha fechada.
 16. Migrations são executadas como etapa separada e explicitamente controlada de deploy.
 17. A API não procura nem executa migrations automaticamente ao iniciar.
-18. A SPEC 002-A permanece bloqueada até a conclusão e aprovação do spike de RLS no PostgreSQL 14.
+18. O spike de RLS foi concluído e aceito; sua mecânica passa a ser regida pela
+    ADR 0006 e não bloqueia mais a readiness da 002-A.
 
 Regras complementares:
 
@@ -192,11 +199,89 @@ Regras complementares:
 
 A decisão favorece controle e baixo lock-in sem assumir o custo total de SQL manual. Popularidade não foi critério decisivo.
 
+### Canonicalização e checksum das migrations
+
+O checksum usa SHA-256 sobre uma representação canônica determinística. A
+versão inicial do algoritmo é `v1`:
+
+1. ler o arquivo como UTF-8; byte sequence inválida falha antes da execução;
+2. remover somente o BOM UTF-8 inicial, quando presente;
+3. converter quebras CRLF (`\r\n`) e CR (`\r`) para LF (`\n`);
+4. preservar todo o restante do conteúdo, inclusive espaços, tabs, linhas
+   vazias, Unicode, comentários e presença ou ausência de newline final;
+5. codificar novamente o conteúdo canônico em UTF-8 e calcular SHA-256.
+
+Não há trim, reformatação, normalização Unicode ou alteração automática de SQL
+na canonicalização `v1`. Qualquer mudança futura do algoritmo exige nova
+`canonicalization_version`; ela não pode reinterpretar silenciosamente o
+histórico aplicado.
+
+A tabela auxiliar registra, no mínimo:
+
+- `migration_name`;
+- `checksum_sha256`;
+- `canonicalization_version`, inicialmente `v1`;
+- `applied_at` em UTC;
+- `application_version` do artefato que aplicou a migration;
+- `migration_tool_version` do runner/ferramenta.
+
+Antes de executar qualquer item pendente, o runner recalcula e compara todas as
+migrations aplicadas. Nome ausente, metadado inválido ou checksum divergente
+causa falha fechada e nenhuma alteração. O runner nunca atualiza checksum para
+acomodar divergência. Migration aplicada é imutável; correção exige novo
+arquivo. Migrations executam em etapa separada de deploy, e a inicialização
+normal da API não procura nem aplica migrations.
+
+### Política de tipos
+
+1. Dinheiro no domínio é `MoneyDecimal`, baseado em `BigInt`, com escala fixa 4.
+2. PostgreSQL persiste dinheiro como `numeric(24,4)`.
+3. SQLite auxiliar persiste dinheiro como texto decimal canônico.
+4. Driver/adapter nunca converte `numeric` para JavaScript `number`; a fronteira
+   usa representação textual exata e mapeamento explícito.
+5. PostgreSQL usa UUID nativo.
+6. SQLite usa texto validado para UUID.
+7. PostgreSQL usa `timestamptz`.
+8. SQLite usa ISO 8601 textual.
+9. Instantes são tratados internamente em UTC.
+10. JSON externo ou persistido é validado por schema antes de entrar no domínio.
+11. Tipos de Kysely, rows, drivers e catálogo não escapam da infraestrutura para
+    domínio ou contratos públicos.
+
+Migrations são a fonte de verdade do schema. Interfaces de tabela Kysely são
+projeções internas substituíveis. Mantê-las manualmente, gerá-las ou
+introspectá-las é detalhe de implementação da 002-A, desde que permaneçam em
+`packages/database`, não redefinam o schema e sejam cobertas pelos limites
+arquiteturais e pela verificação de drift.
+
+### Detecção de drift
+
+Será criado na implementação da 002-A o comando `db:verify`. Seu contrato é:
+
+1. verificar histórico, ordem, metadados e checksums das migrations;
+2. no PostgreSQL 14, comparar o estado esperado com objetos críticos do
+   catálogo;
+3. cobrir tabelas, colunas, tipos, constraints, índices, policies RLS, roles e
+   grants;
+4. falhar quando encontrar ausência, excesso ou divergência relevante;
+5. nunca corrigir, fazer `push`, alterar grant ou atualizar checksum
+   automaticamente;
+6. exigir nova migration para toda correção;
+7. tratar alteração manual de schema como proibida;
+8. não usar SQLite como prova de paridade completa do schema.
+
+O manifesto/expectativa de objetos críticos é derivado das migrations
+versionadas e permanece na infraestrutura. A implementação exata do inspector
+pode evoluir, mas a semântica fail-closed e a cobertura mínima acima são
+fitness functions desta ADR.
+
 ## Estratégia de migrations
 
 - usar prefixo monotônico e nome descritivo;
-- manter o histórico operacional do Kysely e uma tabela auxiliar com, no mínimo, nome da migration e checksum SHA-256;
-- calcular o checksum sobre uma representação canônica, determinística e versionada do conteúdo da migration;
+- manter o histórico operacional do Kysely e tabela auxiliar com nome,
+  checksum SHA-256, versão de canonicalização, data, versão da aplicação e
+  versão da ferramenta;
+- calcular o checksum segundo a canonicalização `v1` definida nesta ADR;
 - validar todas as migrations já aplicadas antes de executar qualquer migration pendente;
 - falhar sem aplicar mudanças se nome, conteúdo ou checksum de migration aplicada divergirem;
 - nunca sobrescrever automaticamente o checksum registrado para acomodar divergência;
@@ -208,6 +293,7 @@ A decisão favorece controle e baixo lock-in sem assumir o custo total de SQL ma
 - validar obrigatoriamente no PostgreSQL 14;
 - executar migrations com papel e etapa de deploy separados da API;
 - proibir execução automática de migrations no startup da API;
+- executar `db:verify` como gate explícito sem autocorreção de drift;
 - exigir backup e autorização explícita antes de qualquer operação destrutiva.
 
 ## Consequências positivas
@@ -230,9 +316,16 @@ A decisão favorece controle e baixo lock-in sem assumir o custo total de SQL ma
 - falhar o build se `packages/domain` importar Kysely, `pg` ou `packages/database`;
 - falhar a revisão se aplicação/API acessar tabelas sem repository;
 - falhar o pipeline se uma migration aplicada tiver nome presente e checksum SHA-256 divergente;
+- testar que BOM ausente/presente e CRLF/CR/LF equivalentes produzem o mesmo
+  checksum `v1`;
+- testar que espaços, tabs, comentários, Unicode e newline final são
+  preservados e que qualquer mudança fora das normalizações `v1` altera o
+  checksum;
 - testar que alteração de um byte na representação canônica de migration aplicada impede qualquer nova execução;
 - testar que uma correção criada como nova migration preserva o histórico anterior;
 - validar que a tabela auxiliar registra nome e checksum no mesmo fluxo transacional seguro da aplicação da migration;
+- validar também `canonicalization_version`, `applied_at`,
+  `application_version` e `migration_tool_version`;
 - verificar que a API inicia sem consultar, criar ou alterar tabelas de migration;
 - verificar que o deploy executa migrations em etapa separada com credenciais próprias;
 - testar migrations do zero e sobre snapshot representativo no PostgreSQL 14;
@@ -241,6 +334,13 @@ A decisão favorece controle e baixo lock-in sem assumir o custo total de SQL ma
 - proibir `number` para dinheiro no domínio e testar round-trip de `MoneyDecimal` com escala 4;
 - verificar `numeric(24,4)`, UUID nativo e `timestamptz` no schema PostgreSQL;
 - verificar texto decimal canônico, UUID textual validado e ISO 8601 UTC no adapter SQLite;
+- testar que o adapter PostgreSQL nunca entrega `numeric` como JavaScript
+  `number`;
+- validar JSON por schema antes de mapear para o domínio;
+- executar `db:verify` contra drift de tabelas, colunas, tipos, constraints,
+  índices, policies RLS, roles e grants no PostgreSQL 14;
+- testar que `db:verify` falha e não corrige automaticamente cada classe de
+  drift;
 - impedir que uma validação apenas em SQLite conclua persistência, concorrência ou isolamento;
 - revisar o SQL de toda migration antes de aplicação.
 
@@ -253,10 +353,15 @@ A decisão favorece controle e baixo lock-in sem assumir o custo total de SQL ma
 - [x] representações de dinheiro, UUID e datas definidas por banco;
 - [x] política de imutabilidade e correção por nova migration definida;
 - [x] camada de checksum SHA-256 e falha por divergência decididas;
+- [x] canonicalização UTF-8 `v1` e metadados de aplicação definidos;
+- [x] política de tipos e proibição de `numeric` → `number` definidas;
+- [x] migrations como fonte de verdade e contrato fail-closed de `db:verify` definidos;
 - [x] execução de migrations separada do startup da API decidida;
 - [x] aceite humano registrado.
 
-O spike de RLS não condiciona o status desta ADR, mas continua sendo gate obrigatório para iniciar a SPEC 002-A.
+O spike de RLS foi concluído e aceito na ADR 0006. Não resta gate crítico desta
+ADR para a readiness documental da SPEC 002-A; implementação e migrations
+continuam dependentes de execução própria autorizada.
 
 ## Quando revisar
 
@@ -278,7 +383,10 @@ O spike de RLS não condiciona o status desta ADR, mas continua sendo gate obrig
 
 ## Questões abertas
 
-- Os tipos de tabela serão mantidos manualmente, gerados ou introspectados em CI dentro de `packages/database`?
-- Qual representação canônica versionada será usada como entrada do SHA-256 para permanecer estável entre ambientes?
 - Qual é a política operacional de rollback para migrations com transformação de dados?
 - O suporte SQLite continuará obrigatório após os primeiros módulos persistentes?
+
+As questões restantes são revisões operacionais/futuras. A primeira deve ser
+decidida por migration quando surgir transformação de dados; a segunda não
+bloqueia a implementação inicial da 002-A, pois SQLite permanece auxiliar e
+PostgreSQL 14 é o gate oficial.

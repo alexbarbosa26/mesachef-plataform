@@ -98,7 +98,7 @@ docs/skills/security
 
 | Ordem | Arquivo | Nome | Dependências | Estado |
 |---:|---|---|---|---|
-| 000 | `docs/sdd/000-visao-produto.md` | Visão do produto e escopo da reconstrução | Nenhuma | PENDENTE |
+| 000 | `docs/sdd/000-visao-produto.md` | Visão do produto e escopo da reconstrução | Nenhuma | EM_VALIDACAO |
 | 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | BLOQUEADA |
 | 002 | `docs/sdd/002-identity-access-multiempresa.md` | Autenticação, autorização e multiempresa | 001 | BLOQUEADA |
 | 003 | `docs/sdd/003-layout-navegacao.md` | Layout, navegação e design system | 001 e contratos iniciais da 002 | BLOQUEADA |
@@ -130,7 +130,7 @@ Estados permitidos:
 active_spec:
   id: "000"
   file: "docs/sdd/000-visao-produto.md"
-  state: "PENDENTE"
+  state: "EM_VALIDACAO"
   owner: "Alex"
   objective: "Documentar a visão do produto, escopo, usuários, módulos e limites da reconstrução."
 ```
@@ -476,29 +476,31 @@ Quando um item não se aplicar, registrar `N/A` com justificativa.
 
 ### Passo 3 — Inventariar o projeto antigo
 
-- [ ] Mapear rotas.
-- [ ] Mapear telas.
-- [ ] Mapear menus.
-- [ ] Mapear entidades.
-- [ ] Mapear tabelas e migrations.
-- [ ] Mapear autenticação e autorização.
-- [ ] Mapear integrações.
-- [ ] Mapear regras de precificação.
-- [ ] Mapear estoque.
-- [ ] Mapear self-service.
-- [ ] Mapear WhatsApp.
-- [ ] Registrar hipóteses funcionais.
+- [x] Mapear rotas.
+- [x] Mapear telas.
+- [x] Mapear menus.
+- [x] Mapear entidades.
+- [x] Mapear tabelas e migrations.
+- [x] Mapear autenticação e autorização.
+- [x] Mapear integrações.
+- [x] Mapear regras de precificação.
+- [x] Mapear estoque.
+- [x] Mapear self-service.
+- [x] Mapear WhatsApp.
+- [x] Registrar hipóteses funcionais.
 
 ### Passo 4 — Concluir SPEC 000
 
-- [ ] Visão do produto.
-- [ ] Perfis de usuário.
-- [ ] Módulos.
-- [ ] Escopo da reconstrução.
-- [ ] Fora de escopo.
-- [ ] Restrições.
-- [ ] Objetivos de qualidade.
-- [ ] Critérios de sucesso.
+- [x] Visão do produto.
+- [x] Perfis de usuário.
+- [x] Módulos.
+- [x] Escopo da reconstrução.
+- [x] Fora de escopo.
+- [x] Restrições.
+- [x] Objetivos de qualidade.
+- [x] Critérios de sucesso.
+
+Os itens documentais acima foram preenchidos. O aceite do responsável do produto continua pendente; por isso, a SPEC 000 permanece `EM_VALIDACAO` e não está `CONCLUIDA`.
 
 ### Passo 5 — Preparar SPEC 001
 
@@ -534,14 +536,20 @@ Quando um item não se aplicar, registrar `N/A` com justificativa.
 
 ```yaml
 last_execution:
-  date: null
-  spec: null
-  mode: null
-  status: null
-  summary: null
-  tests: []
-  blockers: []
-  next_recommended_action: "Preencher a SPEC 000 e os ADRs iniciais."
+  date: "2026-07-18"
+  spec: "000"
+  mode: "documentation"
+  status: "EM_VALIDACAO"
+  summary: "Visão do produto consolidada; sistema de referência inventariado; plano de migração e pendências registrados; ADRs iniciais validados sem alteração."
+  tests:
+    - "Revisão estática de rotas, páginas, hooks, tabelas, migrations, Edge Functions e RLS."
+    - "Revisão cruzada da SPEC 000, inventários, ADRs, pendências e plano de migração."
+    - "Verificação de diff Markdown e escopo documental registrada em docs/qa/evidencias/spec-000.md."
+    - "Lint, typecheck, testes de aplicação, build e banco: N/A nesta execução exclusivamente documental."
+  blockers:
+    - "Aceite explícito do responsável do produto para a SPEC 000."
+    - "Decisões críticas listadas em docs/qa/pendencias.md."
+  next_recommended_action: "Validar a SPEC 000 e decidir suas pendências; manter a SPEC 001 bloqueada até nova autorização explícita."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

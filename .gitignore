@@ -11,3 +11,13 @@ build
 coverage
 .cache
 .turbo
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.tsbuildinfo
+.pnpm-debug.log*
+.pnpm-store/
+
+!.env.example
+!.env.sqlite.example

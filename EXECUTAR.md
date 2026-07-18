@@ -99,7 +99,7 @@ docs/skills/security
 | Ordem | Arquivo | Nome | Dependências | Estado |
 |---:|---|---|---|---|
 | 000 | `docs/sdd/000-visao-produto.md` | Visão do produto e escopo da reconstrução | Nenhuma | CONCLUIDA |
-| 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | PRONTA_PARA_IMPLEMENTAR |
+| 001 | `docs/sdd/001-fundacao-projeto.md` | Fundação técnica | 000 e ADRs iniciais | EM_VALIDACAO |
 | 002 | `docs/sdd/002-identity-access-multiempresa.md` | Autenticação, autorização e multiempresa | 001 | BLOQUEADA |
 | 003 | `docs/sdd/003-layout-navegacao.md` | Layout, navegação e design system | 001 e contratos iniciais da 002 | BLOQUEADA |
 | 004 | `docs/sdd/004-estoque.md` | Estoque e movimentações | 002 e 003 | BLOQUEADA |
@@ -130,7 +130,7 @@ Estados permitidos:
 active_spec:
   id: "001"
   file: "docs/sdd/001-fundacao-projeto.md"
-  state: "PRONTA_PARA_IMPLEMENTAR"
+  state: "EM_VALIDACAO"
   owner: "Alex"
   objective: "Criar a fundação técnica do monorepo."
 ```
@@ -500,34 +500,36 @@ Quando um item não se aplicar, registrar `N/A` com justificativa.
 - [x] Objetivos de qualidade.
 - [x] Critérios de sucesso.
 
-Os itens documentais acima foram preenchidos. O aceite do responsável do produto continua pendente; por isso, a SPEC 000 permanece `EM_VALIDACAO` e não está `CONCLUIDA`.
+Os itens documentais acima foram preenchidos e a SPEC 000 foi concluída pelo responsável do produto antes da autorização da SPEC 001.
 
 ### Passo 5 — Preparar SPEC 001
 
-- [ ] Definir gerenciador de pacotes.
-- [ ] Definir organização do monorepo.
-- [ ] Definir framework da API.
-- [ ] Definir estratégia de banco.
+- [x] Definir gerenciador de pacotes.
+- [x] Definir organização do monorepo.
+- [x] Definir framework da API.
+- [x] Definir estratégia de banco.
 - [ ] Definir ORM/query builder mediante ADR.
-- [ ] Definir scripts.
-- [ ] Definir Docker Compose.
+- [x] Definir scripts.
+- [x] Definir Docker Compose.
 - [ ] Definir CI inicial.
-- [ ] Definir health checks.
-- [ ] Definir logging.
-- [ ] Definir testes básicos.
+- [x] Definir health checks.
+- [x] Definir logging.
+- [x] Definir testes básicos.
+
+ORM/query builder e CI inicial permanecem deliberadamente pendentes: não são necessários para o incremento autorizado e exigem decisão ou execução futura própria.
 
 ### Passo 6 — Implementar SPEC 001
 
-- [ ] Criar `apps/web`.
-- [ ] Criar `apps/api`.
-- [ ] Criar packages.
-- [ ] Criar scripts raiz.
-- [ ] Criar health check.
-- [ ] Criar página inicial.
-- [ ] Criar ambiente Docker.
-- [ ] Criar conexão local segura.
-- [ ] Criar testes mínimos.
-- [ ] Validar build completo.
+- [x] Criar `apps/web`.
+- [x] Criar `apps/api`.
+- [x] Criar packages.
+- [x] Criar scripts raiz.
+- [x] Criar health check.
+- [x] Criar página inicial.
+- [x] Criar ambiente Docker.
+- [x] Criar conexão local segura.
+- [x] Criar testes mínimos.
+- [x] Validar build completo.
 - [ ] Validar PostgreSQL 14.
 
 ---
@@ -537,19 +539,20 @@ Os itens documentais acima foram preenchidos. O aceite do responsável do produt
 ```yaml
 last_execution:
   date: "2026-07-18"
-  spec: "000"
-  mode: "documentation"
+  spec: "001"
+  mode: "implementation"
   status: "EM_VALIDACAO"
-  summary: "Visão do produto consolidada; sistema de referência inventariado; plano de migração e pendências registrados; ADRs iniciais validados sem alteração."
+  summary: "Fundação técnica do monorepo implementada com web, API, packages, scripts, health checks, PostgreSQL 14 via Compose, SQLite auxiliar, testes e build; nenhum módulo de negócio foi criado."
   tests:
-    - "Revisão estática de rotas, páginas, hooks, tabelas, migrations, Edge Functions e RLS."
-    - "Revisão cruzada da SPEC 000, inventários, ADRs, pendências e plano de migração."
-    - "Verificação de diff Markdown e escopo documental registrada em docs/qa/evidencias/spec-000.md."
-    - "Lint, typecheck, testes de aplicação, build e banco: N/A nesta execução exclusivamente documental."
+    - "pnpm install --frozen-lockfile: concluído sem alterações no lockfile."
+    - "pnpm check: lint, limites arquiteturais, contrato do Compose, typecheck, 11 testes unitários, 2 testes de integração e build aprovados."
+    - "Smoke test da API: liveness, readiness SQLite, OpenAPI, correlation ID, headers de segurança e CORS aprovados."
+    - "Smoke test do comando raiz: web e API iniciadas simultaneamente."
+    - "Validação visual da web em desktop e viewport móvel, sem overflow horizontal e sem erros ou avisos no console."
+    - "Contrato estático do Compose PostgreSQL 14 aprovado."
   blockers:
-    - "Aceite explícito do responsável do produto para a SPEC 000."
-    - "Decisões críticas listadas em docs/qa/pendencias.md."
-  next_recommended_action: "Validar a SPEC 000 e decidir suas pendências; manter a SPEC 001 bloqueada até nova autorização explícita."
+    - "Docker não está instalado ou disponível neste ambiente; o container PostgreSQL 14 e o readiness contra PostgreSQL real ainda precisam ser validados."
+  next_recommended_action: "Executar o Compose e validar o readiness contra PostgreSQL 14 em ambiente local com Docker; atualizar as evidências da SPEC 001 sem iniciar a SPEC 002."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

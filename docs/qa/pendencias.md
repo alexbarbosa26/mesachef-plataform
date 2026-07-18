@@ -3,9 +3,9 @@
 ## 1. Estado
 
 - **Atualização:** 2026-07-18
-- **Spec ativa:** 000 — Visão do produto
-- **Estado da spec:** em validação documental
-- **Próxima spec:** 001 permanece bloqueada e não foi iniciada
+- **Spec ativa:** 001 — Fundação técnica
+- **Estado da spec:** `CONCLUIDA`
+- **Próxima spec:** 002 permanece `BLOQUEADA` e não foi iniciada
 
 Este registro concentra conflitos, lacunas de decisão e hipóteses encontradas na leitura das especificações, ADRs e do projeto de referência. Nenhum item deve ser resolvido por suposição silenciosa. A prioridade indica risco para decisões futuras, não autorização para avançar de spec.
 
@@ -19,16 +19,16 @@ Este registro concentra conflitos, lacunas de decisão e hipóteses encontradas 
 
 ## 3. Bloqueios e conflitos
 
-### BLOQUEIO-20260718-001 — Aceite da visão do produto
+### BLOQUEIO-20260718-001 — Aceite da visão do produto — resolvido
 
 - **Spec:** 000
 - **Prioridade:** Crítica
+- **Status:** resolvido em 2026-07-18 pelo responsável do produto.
 - **Descrição:** a visão foi consolidada a partir dos documentos e do sistema de referência, mas ainda não possui validação explícita do responsável pelo produto quanto a objetivos, limites, atores, módulos e critérios de sucesso.
-- **Impacto:** a SPEC 000 não pode ser marcada como concluída e a SPEC 001 não pode ser liberada automaticamente.
+- **Impacto original:** a SPEC 000 não poderia ser concluída e a SPEC 001 não poderia ser liberada automaticamente sem esse aceite.
 - **Evidência:** `docs/sdd/000-visao-produto.md`, seções de critérios de aceite e decisões abertas.
-- **Opções:** aprovar integralmente; aprovar com ajustes registrados; rejeitar pontos e solicitar nova revisão.
-- **Recomendação:** realizar revisão do produto usando as decisões deste arquivo como pauta e registrar o aceite na SPEC 000.
-- **Decisão necessária:** responsável do produto aprova a visão e autoriza, em execução separada, a preparação ou não da SPEC 001.
+- **Resolução:** o responsável marcou a SPEC 000 como `CONCLUIDA`, liberou a SPEC 001 no commit anterior `eb672a4` e autorizou explicitamente esta execução de implementação.
+- **Decisão necessária:** nenhuma para este bloqueio; as demais decisões funcionais continuam registradas separadamente.
 
 ### BLOQUEIO-20260718-002 — Matriz de autorização inconsistente
 
@@ -116,3 +116,29 @@ Todas as afirmações abaixo resultam da observação do legado e não constitue
 ## 6. Critério de atualização
 
 Ao resolver um item, registrar data, decisor, decisão, documento alterado e evidência. Remover um item da lista sem essa rastreabilidade não é permitido. Decisões que mudem arquitetura devem gerar ou atualizar ADR; decisões de comportamento devem atualizar a spec correspondente antes de implementação.
+
+## 7. Pendências da SPEC 001
+
+### PEND-001-001 — Estado divergente antes da implementação
+
+- **Prioridade:** Resolvida em 2026-07-18 nesta execução.
+- **Descrição:** `EXECUTAR.md` e a autorização do proprietário liberavam a SPEC 001, mas o cabeçalho da spec permanecia `DRAFT`.
+- **Decisão aplicada:** sincronizar a spec para `EM_IMPLEMENTACAO` antes das alterações, completar suas seções obrigatórias e, após as verificações, registrá-la como `EM_VALIDACAO`, mantendo a SPEC 002 bloqueada.
+- **Evidência:** `docs/sdd/001-fundacao-projeto.md` e commit anterior `eb672a4` que liberou a execução no controlador.
+
+### PEND-001-002 — Validação do Docker/PostgreSQL 14 — resolvida
+
+- **Prioridade:** resolvida em 2026-07-18 na execução de validação.
+- **Descrição original:** Docker não estava acessível no ambiente da execução de implementação.
+- **Impacto original:** o Compose só havia sido revisado estaticamente, impedindo concluir o critério PostgreSQL 14.
+- **Resolução:** Docker Compose 5.3.0 iniciou e aguardou o container `postgres:14-alpine`; PostgreSQL 14.23 ficou `healthy`, aceitou conexões e sustentou o probe da API. Com o banco parado, live permaneceu 200 e ready passou a 503; após o reinício, ready voltou a 200 no mesmo processo.
+- **Evidência:** `docs/qa/evidencias/spec-001.md`, seções 6, 9 e 10.
+- **Decisão necessária:** nenhuma; a pendência está encerrada e nenhum volume foi removido.
+
+### PEND-001-003 — ORM ou query builder
+
+- **Prioridade:** Média.
+- **Descrição:** não existe schema, repository ou caso de persistência de negócio na SPEC 001.
+- **Impacto:** escolher uma ferramenta agora criaria compromisso sem evidência suficiente.
+- **Recomendação:** criar ADR na primeira spec que introduzir persistência e comparar suporte a PostgreSQL, testes auxiliares SQLite, migrations, tipagem e operação.
+- **Decisão necessária:** adiada de forma explícita; a fundação usa somente probes de conectividade.

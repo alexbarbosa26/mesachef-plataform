@@ -201,3 +201,55 @@ As pendências detalhadas estão em `docs/qa/pendencias.md`, seção 8.
 - testes de aplicação, lint, typecheck e build: `N/A`, pois não houve mudança em código ou configuração executável.
 
 **Resultado:** as 12 decisões humanas foram registradas sem implementar, instalar dependências, acessar banco/produção, criar migration, avançar de spec ou criar commit.
+
+## 15. Spike Kysely persistence — 2026-07-18
+
+### Identificação e escopo
+
+- **Modo:** `validation`;
+- **tipo:** spike técnico descartável;
+- **branch observada:** `spike/spec-002-kysely-persistence`;
+- **código:** restrito a `spikes/kysely-persistence`;
+- **relatório:** `docs/qa/spikes/spec-002-kysely-persistence.md`;
+- **módulos definitivos:** nenhuma alteração em `apps/**` ou `packages/**`;
+- **produção:** não acessada;
+- **commit:** não criado;
+- **estado da SPEC 002:** mantido em `EM_ESPECIFICACAO`;
+- **SPEC 002-A e SPEC 003:** permanecem bloqueadas.
+
+### Evidências executáveis
+
+| Evidência | Resultado |
+|---|---|
+| Docker/PostgreSQL | container local `healthy`; PostgreSQL 14.23 |
+| SQLite | 3.53.2 em memória |
+| Kysely | 0.29.4 |
+| lint | aprovado, zero warnings |
+| typecheck estrito | aprovado |
+| suíte sem PostgreSQL | 5 arquivos, 20 testes aprovados |
+| suíte PostgreSQL | 1 arquivo, 5 testes aprovados |
+| build isolado | aprovado |
+| auditoria de dependências de produção | nenhuma vulnerabilidade conhecida |
+| cleanup | nenhuma das quatro tabelas de entidade permaneceu após os testes |
+
+Os testes cobriram `up/down`, alvo sem tabelas experimentais, reaplicação,
+transações, rollback, UUID, timestamps, decimal exato sem `float`, foreign keys,
+chave única composta, muitos-para-muitos, repository desacoplado, tenant query e
+erro controlado para configuração inválida.
+
+### Resultado arquitetural
+
+Kysely foi considerado adequado como query builder e adapter de infraestrutura
+para PostgreSQL 14, com SQLite somente auxiliar. O domínio permaneceu separado
+dos drivers e do schema, e o filtro por empresa foi exigido pela porta e
+comprovado pelo contrato dos dois dialects.
+
+O migrator nativo detectou migration fora de ordem, mas não alteração de
+conteúdo já aplicado sob o mesmo nome. A tabela de histórico observada possui
+somente `name` e `timestamp`. A política de manutenção/verificação de drift dos
+tipos de tabela também continua sem decisão humana.
+
+**Conclusão:** o spike está concluído com ressalvas, mas a ADR 0004 permanece
+`PROPOSED`. `PEND-002-001` foi parcialmente resolvida; o aceite da ADR depende
+de checksum/migrator, política de tipos e decisão humana. `PEND-002-006` continua
+aberta e ainda bloqueia a SPEC 002-A.

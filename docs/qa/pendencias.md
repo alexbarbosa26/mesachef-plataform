@@ -139,14 +139,15 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 ### PEND-001-003 — ORM ou query builder
 
-- **Prioridade:** Alta para o início da SPEC 002; encaminhada, ainda não decidida.
-- **Status:** aberta; Kysely foi escolhido somente como objeto do spike e a ADR 0004 permanece `PROPOSED`.
+- **Prioridade:** Alta para o início da SPEC 002; spike concluído, decisão arquitetural ainda pendente.
+- **Status:** parcialmente resolvida em 2026-07-18; Kysely foi validado tecnicamente, mas a ADR 0004 permanece `PROPOSED`.
 - **Descrição:** não existe schema, repository ou caso de persistência de negócio na SPEC 001.
 - **Impacto:** escolher uma ferramenta agora criaria compromisso sem evidência suficiente.
 - **Encaminhamento em 2026-07-18:** a ADR 0004 compara Drizzle, Prisma, Kysely e SQL explícito com repositories e recomenda Kysely condicionado a spike no PostgreSQL 14.
-- **Recomendação:** aceitar ou substituir a ADR 0004 somente após comprovar migration, transação, constraint composta, tenant query, tipos e adapter SQLite auxiliar.
+- **Evidência do spike:** `docs/qa/spikes/spec-002-kysely-persistence.md`; PostgreSQL 14.23 e SQLite auxiliar aprovados para o escopo, com ressalva de checksum e política de tipos.
+- **Recomendação:** aceitar Kysely como query builder somente após decidir o controle de migration alterada e a manutenção/verificação de drift dos tipos de tabela.
 - **Decisão humana em 2026-07-18:** não aceitar a ADR 0004 antes da conclusão e revisão do spike com Kysely.
-- **Decisão necessária:** concluir o spike e decidir formalmente a estratégia e o migrator antes do incremento 002-A. A fundação continua usando somente probes de conectividade.
+- **Decisão necessária:** revisar o spike, complementar ou substituir o migrator, definir a política de tipos e decidir formalmente a ADR 0004 antes do incremento 002-A. A fundação continua usando somente probes de conectividade.
 
 ## 8. Pendências da SPEC 002
 
@@ -154,7 +155,7 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 | Decisão | Resultado | Rastreabilidade |
 |---|---|---|
-| ADR 0004 | permanece `PROPOSED` até spike com Kysely | PEND-002-001 |
+| ADR 0004 | spike com Kysely concluído com ressalvas; permanece `PROPOSED` até revisão humana e fechamento dos gates | PEND-002-001 |
 | ADR 0005 | `ACCEPTED` | PEND-002-004 parcialmente resolvida |
 | ADR 0006 | `ACCEPTED`; implementação de RLS depende de spike PostgreSQL | PEND-002-003 parcialmente resolvida e PEND-002-006 aberta |
 | Usuário–empresa | muitos-para-muitos por `Membership` | PEND-002-002 encerrada |
@@ -168,13 +169,13 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 ### PEND-002-001 — Estratégia de persistência e migrations
 
 - **Prioridade:** Crítica.
-- **Status:** aberta; ADR 0004 mantida em `PROPOSED` por decisão humana de 2026-07-18.
-- **Descrição:** a SPEC 002 introduzirá a primeira persistência de negócio, mas query builder, migrator e manutenção dos tipos de tabela ainda não foram aceitos.
-- **Impacto:** bloqueia schema, repositories, migrations e o início do incremento 002-A, em conjunto com a PEND-002-006.
-- **Evidência:** `docs/adr/0004-estrategia-persistencia-query-builder.md` e `docs/sdd/002-identity-access-multiempresa.md`, seções 18, 20 e 25.
-- **Recomendação:** Kysely sobre `pg`, migrations explícitas/versionadas e domínio isolado, condicionado a spike no PostgreSQL 14.
-- **Decisão humana registrada:** Kysely será avaliado no spike; não deve ser instalado nem tratado como aceito nesta execução.
-- **Decisão necessária:** concluir e revisar o spike, aceitar/rejeitar/substituir a ADR 0004 e definir geração/manutenção dos tipos.
+- **Status:** parcialmente resolvida em 2026-07-18; spike concluído com recomendação favorável a Kysely, ADR 0004 ainda `PROPOSED`.
+- **Descrição:** query builder, dialects, transactions, constraints, tenant query e isolamento do domínio foram validados. O migrator nativo detecta ordem inválida, mas não alteração de conteúdo sob o mesmo nome; a política dos tipos de tabela também não foi aceita.
+- **Impacto:** continua bloqueando migrations definitivas e o início do incremento 002-A, em conjunto com a PEND-002-006, até decisão arquitetural e humana.
+- **Evidência:** `docs/qa/spikes/spec-002-kysely-persistence.md`, ADR 0004 e SPEC 002, seções 18, 20 e 25.
+- **Recomendação:** Kysely sobre `pg` como query builder, domínio isolado e migrations versionadas; complementar/substituir o migrator para checksum e verificar drift dos tipos em CI.
+- **Decisão humana registrada:** o spike estava autorizado somente como experimento; sua conclusão não muda automaticamente o status da ADR nem libera a SPEC 002-A.
+- **Decisão necessária:** revisar o relatório, escolher política de checksum/migrator e tipos, e aceitar/rejeitar/substituir formalmente a ADR 0004.
 
 ### PEND-002-002 — Associação multiempresa e empresa ativa
 
@@ -224,7 +225,7 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Prioridade:** Crítica.
 - **Status:** aberta; ADR 0006 aceita e spike PostgreSQL obrigatório para definir a implementação.
 - **Descrição:** RLS foi aceita como direção de defesa em profundidade, mas `SET LOCAL` é apenas candidato; role de runtime, pool, query builder e concorrência ainda não foram comprovados.
-- **Impacto:** configuração incorreta pode manter contexto entre requisições ou criar falsa garantia de isolamento; a SPEC 002-A permanece bloqueada até a conclusão deste spike e do spike de persistência.
+- **Impacto:** configuração incorreta pode manter contexto entre requisições ou criar falsa garantia de isolamento; a SPEC 002-A permanece bloqueada até este spike de RLS e o aceite formal da estratégia de persistência. O spike Kysely já foi concluído com ressalvas.
 - **Evidência:** ADR 0006 e SPEC 002, seções 17, 18.6 e 21.3.
 - **Decisões humanas registradas:** SQLite não é evidência suficiente; `superadmin` não possui bypass implícito; a forma de RLS depende de spike PostgreSQL.
 - **Recomendação:** spike no PostgreSQL 14 com role sem owner/`BYPASSRLS`, transações concorrentes, contexto ausente/inválido, reuso de conexão e tentativa de acesso cruzado.

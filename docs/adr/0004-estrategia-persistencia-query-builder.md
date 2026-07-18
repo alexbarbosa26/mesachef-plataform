@@ -2,9 +2,9 @@
 
 ## Status
 
-PROPOSED
+ACCEPTED
 
-Mantida em `PROPOSED` por decisão humana registrada em 2026-07-18. Kysely é a tecnologia candidata do spike, não uma dependência autorizada nem uma decisão aceita antes das evidências técnicas.
+Mantida em `PROPOSED` por decisão humana registrada em 2026-07-18. O spike com Kysely foi concluído com ressalvas na mesma data e confirmou a adequação técnica do query builder, mas o aceite ainda depende de decisões sobre checksum, manutenção dos tipos de tabela e revisão humana.
 
 ## Data
 
@@ -16,6 +16,24 @@ Mantida em `PROPOSED` por decisão humana registrada em 2026-07-18. Kysely é a 
 - **Decisão:** manter esta ADR em `PROPOSED` até concluir e revisar um spike técnico com Kysely no PostgreSQL 14.
 - **Efeito:** a recomendação abaixo orienta o spike, mas não autoriza instalar Kysely, criar migrations ou iniciar a SPEC 002-A.
 - **Gate:** a mudança para `ACCEPTED` exige evidência reproduzível dos critérios desta ADR e decisão humana posterior.
+
+## Evidência técnica do spike — 2026-07-18
+
+O spike descartável em `spikes/kysely-persistence` validou Kysely 0.29.4 no
+PostgreSQL 14.23 e no SQLite 3.53.2 auxiliar. Foram aprovados migrations
+`up/down`, DDL transacional, commit, rollback, UUID, timestamps, decimal exato,
+foreign keys, chaves únicas compostas, relação muitos-para-muitos, repository
+sem dependência do domínio e filtro obrigatório por empresa.
+
+O migrator nativo recusou migration inserida fora da ordem histórica, mas não
+detectou alteração no conteúdo de uma migration já aplicada com o mesmo nome.
+Sua tabela de histórico possui somente `name` e `timestamp`. A política de
+geração/manutenção dos tipos de tabela também continua sem aceite.
+
+**Resultado para esta ADR:** Kysely é tecnicamente recomendado como query
+builder, porém esta ADR permanece `PROPOSED` até que os dois gates remanescentes
+sejam decididos e o responsável faça o aceite explícito. Evidências completas:
+`docs/qa/spikes/spec-002-kysely-persistence.md`.
 
 ## Contexto
 
@@ -188,10 +206,13 @@ A recomendação favorece controle e baixo lock-in sem assumir o custo total de 
 
 ## Gates para aceitar esta ADR
 
-- concluir e revisar um spike autorizado com Kysely e PostgreSQL 14 para migration, transaction, constraint composta e tenant query;
-- demonstrar um adapter SQLite auxiliar sem duplicar regras de domínio;
-- definir a política de geração/manutenção dos tipos de tabela;
-- validar que o migrator detecta ordem e migration alterada.
+- [x] concluir um spike autorizado com Kysely e PostgreSQL 14 para migration, transaction, constraint composta e tenant query;
+- [x] demonstrar um adapter SQLite auxiliar sem duplicar regras de domínio;
+- [x] validar que o migrator detecta migration fora de ordem;
+- [ ] revisar formalmente o relatório do spike;
+- [ ] definir a política de geração/manutenção e verificação de drift dos tipos de tabela;
+- [ ] complementar ou substituir o migrator para detectar alteração de migration aplicada, ou substituir este gate por decisão arquitetural explícita;
+- [ ] registrar o aceite humano desta ADR.
 
 ## Quando revisar
 
@@ -213,7 +234,8 @@ A recomendação favorece controle e baixo lock-in sem assumir o custo total de 
 
 ## Questões abertas
 
-- O spike confirma Kysely como escolha final ou exige revisar as alternativas desta ADR?
-- Os tipos de tabela serão mantidos manualmente ou gerados em CI?
+- O responsável aceita Kysely como query builder após revisar o spike?
+- Os tipos de tabela serão mantidos manualmente, gerados ou introspectados em CI?
+- O projeto adicionará checksum ao runner, adotará migrator dedicado ou aprovará outro controle de imutabilidade?
 - Qual é a política operacional de rollback para migrations com transformação de dados?
 - O suporte SQLite continuará obrigatório após os primeiros módulos persistentes?

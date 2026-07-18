@@ -1,0 +1,38 @@
+{
+  "name": "@mesachef/spike-kysely-persistence",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Spike descartável para validar Kysely com PostgreSQL 14 e SQLite auxiliar.",
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=24.0.0 <25",
+    "pnpm": ">=11.9.0 <12"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run test",
+    "lint": "eslint . --max-warnings 0",
+    "migrate:down": "pnpm run build && node dist/src/cli.js down",
+    "migrate:up": "pnpm run build && node dist/src/cli.js up",
+    "test": "vitest run --config vitest.config.ts",
+    "test:postgres": "vitest run --config vitest.postgres.config.ts",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "12.11.1",
+    "kysely": "0.29.4",
+    "pg": "8.22.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "24.13.3",
+    "@types/pg": "8.20.0",
+    "eslint": "10.7.0",
+    "globals": "17.7.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10"
+  }
+}

@@ -2,11 +2,11 @@
 
 ## Status
 
-- **Estado:** `EM_ESPECIFICACAO`
+- **Estado:** `PRONTA_PARA_IMPLEMENTAR`
 - **Atualização:** 2026-07-18
-- **Implementação autorizada:** não
-- **Motivo:** o gate técnico de RLS está encerrado, mas decisões críticas de
-  checksum, tipos/drift e normalização de e-mail permanecem abertas.
+- **Implementação executada nesta revisão:** não; execução exclusivamente documental
+- **Motivo:** os gates críticos de persistência, normalização de e-mail,
+  checksum, tipos, drift e RLS foram decididos e possuem critérios verificáveis.
 
 ## Contexto
 
@@ -34,8 +34,9 @@ isolamento em profundidade no PostgreSQL 14, sem acoplar o domínio ao banco.
 - ADR 0004 aceita: Kysely, representações por dialect e checksum SHA-256;
 - ADR 0006 aceita: `TenantContext`/`PlatformContext` e mecânica RLS;
 - spikes Kysely e PostgreSQL RLS concluídos;
-- resolução de `PEND-002-008` sobre normalização de e-mail;
-- resolução de `PEND-002-009` sobre checksum canônico e tipos/drift;
+- `PEND-002-008` encerrada com algoritmo de normalização de e-mail aprovado;
+- `PEND-002-009` encerrada com canonicalização `v1`, política de tipos e
+  contrato de `db:verify` aprovados;
 - autorização humana específica para implementar 002-A.
 
 ## Entradas
@@ -54,8 +55,11 @@ isolamento em profundidade no PostgreSQL 14, sem acoplar o domínio ao banco.
 - dialect oficial PostgreSQL 14 e adapter SQLite auxiliar compatível;
 - runner de migrations separado do processo de startup da API;
 - histórico imutável com checksum SHA-256;
-- estratégia de tipos de tabela e detecção de drift confinada ao database;
+- canonicalização UTF-8 `v1` e metadados completos das migrations;
+- comando `db:verify` para migrations/checksums e catálogo PostgreSQL;
+- tipos de tabela e detecção de drift confinados ao database;
 - representação de UUID, UTC timestamp e decimal exato por dialect;
+- normalização central de e-mail e unicidade por `email_normalized`;
 - schemas e tabelas iniciais de identidade e tenancy;
 - portas de repository no domínio/aplicação e adapters no database;
 - unidade de trabalho e executores transacionais;
@@ -85,8 +89,11 @@ isolamento em profundidade no PostgreSQL 14, sem acoplar o domínio ao banco.
 
 - `UserId`, `CompanyId` e `MembershipId`: UUIDs validados e semanticamente
   distintos;
-- `NormalizedEmail`: value object global, cujo algoritmo precisa ser decidido
-  antes da primeira migration;
+- `EmailAddress`: value object com `original` para exibição/auditoria e
+  `normalized` para autenticação/unicidade;
+- `EmailNormalizer`: componente puro e testável do domínio `identity-access`,
+  responsável por trim de extremidades, NFC, lowercase independente de locale,
+  IDNA do domínio e validação de formato;
 - `User`: identidade global mínima e seu estado persistível;
 - `PasswordCredential`: registro persistível separado, sem comportamento de
   validação de senha neste incremento;
@@ -103,33 +110,49 @@ nunca rows do banco.
 ## Invariantes
 
 1. O domínio não importa Kysely, `pg`, SQLite, schema ou tipos de tabela.
-2. `normalized_email` é globalmente único e só é persistido após algoritmo
-   canônico aprovado.
-3. Uma membership é única por `(user_id, company_id)` e seus vínculos são
+2. `email_original` é persistido para exibição/auditoria e nunca é chave de
+   autenticação ou unicidade.
+3. `email_normalized` resulta, em ordem determinística, da remoção de espaços
+   nas extremidades, normalização Unicode NFC, lowercase independente de locale
+   e normalização IDNA do domínio quando necessária.
+4. A normalização não remove pontos do local-part, aliases com `+` nem aplica
+   regra específica de Gmail ou outro provedor.
+5. O formato do e-mail é validado antes da persistência, e a unicidade global é
+   aplicada sobre `email_normalized`; `citext` não é a fonte da regra.
+6. Uma membership é única por `(user_id, company_id)` e seus vínculos são
    imutáveis.
-4. UUID, timestamps e decimal nunca perdem precisão no round-trip.
-5. Instantes são UTC; PostgreSQL usa `timestamptz` e SQLite usa ISO 8601 textual.
-6. Dinheiro futuro usa `MoneyDecimal`/`BigInt` escala 4, `numeric(24,4)` no
-   PostgreSQL e texto decimal canônico no SQLite; nunca `number`/`float`.
-7. Migration aplicada nunca é editada; toda correção é uma nova migration.
-8. Divergência de checksum de migration aplicada falha antes de qualquer
-   mudança pendente.
-9. A API não aplica migrations ao iniciar.
-10. Toda operação tenant-owned recebe `TenantContext` e transação obrigatórios.
-11. Inserts derivam `company_id` do contexto; leituras, updates e deletes
+7. UUID, timestamps e decimal nunca perdem precisão no round-trip.
+8. Instantes são UTC; PostgreSQL usa `timestamptz` e SQLite usa ISO 8601 textual.
+9. JSON é validado por schema antes de entrar no domínio.
+10. Dinheiro futuro usa `MoneyDecimal`/`BigInt` escala 4, `numeric(24,4)` no
+    PostgreSQL e texto decimal canônico no SQLite; driver nunca converte
+    `numeric` para JavaScript `number`.
+11. Migration aplicada nunca é editada; toda correção é uma nova migration.
+12. Checksum SHA-256 usa canonicalização `v1`: UTF-8, remoção de BOM inicial e
+    normalização CRLF/CR para LF, preservando todo o restante.
+13. Divergência de checksum de migration aplicada falha antes de qualquer
+    mudança pendente e nunca é corrigida automaticamente.
+14. Histórico registra migration, checksum, `canonicalization_version`, data,
+    versão da aplicação e versão da ferramenta.
+15. Migrations rodam em etapa separada de deploy; a API não as aplica ao iniciar.
+16. Migrations são a fonte de verdade do schema; alterações manuais são proibidas.
+17. `db:verify` falha ao encontrar drift e nunca modifica schema ou checksums.
+18. Toda operação tenant-owned recebe `TenantContext` e transação obrigatórios.
+19. Inserts derivam `company_id` do contexto; leituras, updates e deletes
     filtram por `company_id` e identificador.
-12. Contexto ausente ou inválido nega por padrão.
-13. Contexto local desaparece após commit ou rollback antes do reuso do pool.
-14. Role tenant não é owner, superuser nem possui `BYPASSRLS` ou DDL.
-15. Role/plano de plataforma não recebe grant tenant-owned por conveniência.
-16. RLS não substitui repository, constraint ou autorização futura.
+20. Contexto ausente ou inválido nega por padrão.
+21. Contexto local desaparece após commit ou rollback antes do reuso do pool.
+22. Role tenant não é owner, superuser nem possui `BYPASSRLS` ou DDL.
+23. Role/plano de plataforma não recebe grant tenant-owned por conveniência.
+24. RLS não substitui repository, constraint ou autorização futura.
+25. SQLite é auxiliar e não prova paridade integral, RLS ou concorrência.
 
 ## Requisitos funcionais
 
 | ID | Requisito |
 |---|---|
 | RF-002A-001 | O runner deve listar, validar e aplicar migrations pendentes em ordem monotônica. |
-| RF-002A-002 | O runner deve registrar nome e checksum SHA-256 em tabela auxiliar no mesmo fluxo transacional seguro. |
+| RF-002A-002 | O runner deve registrar migration, checksum, canonicalização, data, versão da aplicação e versão da ferramenta em tabela auxiliar. |
 | RF-002A-003 | O runner deve recusar conteúdo alterado de migration já aplicada sem atualizar o checksum. |
 | RF-002A-004 | O sistema deve expor factories de banco por provider configurado e recusar configuração inválida com erro sanitizado. |
 | RF-002A-005 | Repositories globais devem exigir `PlatformContext` quando a operação for administrativa/global. |
@@ -140,6 +163,12 @@ nunca rows do banco.
 | RF-002A-010 | Policies RLS devem limitar leitura e escrita à empresa do contexto com `USING` e `WITH CHECK`. |
 | RF-002A-011 | SQLite deve implementar somente os contratos auxiliares compatíveis e declarar recursos não equivalentes. |
 | RF-002A-012 | A aplicação deve mapear rows para tipos próprios sem devolver tipos de infraestrutura ao chamador. |
+| RF-002A-013 | O normalizador deve produzir `email_original` e `email_normalized` conforme o algoritmo aprovado. |
+| RF-002A-014 | Persistência deve validar formato e garantir unicidade global de `email_normalized`. |
+| RF-002A-015 | O checksum deve aplicar somente as transformações da canonicalização UTF-8 `v1`. |
+| RF-002A-016 | O comando `db:verify` deve validar migrations/checksums e objetos críticos do catálogo PostgreSQL. |
+| RF-002A-017 | Drift deve falhar sem autocorreção e exigir nova migration. |
+| RF-002A-018 | Adapters devem preservar dinheiro, UUID, UTC timestamp e JSON validado sem tipos do driver no domínio. |
 
 ## Requisitos não funcionais
 
@@ -148,10 +177,14 @@ nunca rows do banco.
 - pool limitado, encerrável e observável sem expor connection string;
 - erros de configuração e banco convertidos para categorias sanitizadas;
 - migrations determinísticas, revisáveis e repetíveis;
+- canonicalização e checksum reproduzíveis entre Windows/Linux sem ignorar
+  alteração substantiva de conteúdo;
+- migrations como única fonte de verdade e `db:verify` fail-closed;
 - PostgreSQL 14 obrigatório para constraints, migrations, RLS e concorrência;
 - SQLite somente para feedback auxiliar e cenários declaradamente compatíveis;
 - nenhum secret em código, exemplos, snapshots, logs ou evidências;
 - nomes revelam o plano (`tenant` ou `platform`) e evitam helpers genéricos;
+- normalização de e-mail centralizada, pura e independente de locale/provedor;
 - performance não é inferida do spike; medições ficam em gate posterior.
 
 ## Persistência
@@ -161,8 +194,10 @@ nunca rows do banco.
 O desenho lógico inicial contém:
 
 - schema `identity`:
-  - `users` — identidade global, e-mail exibível, chave normalizada, status,
+  - `users` — identidade global, `email_original`, `email_normalized`, status,
     versão e timestamps;
+  - índice/constraint unique sobre `email_normalized`; nenhuma unicidade ou
+    autenticação baseada em `email_original`/`citext`;
   - `password_credentials` — FK única para usuário, hash e metadados de
     algoritmo; somente estrutura, sem criação/validação de senha;
 - schema `tenancy`:
@@ -171,13 +206,58 @@ O desenho lógico inicial contém:
     unicidade `(user_id, company_id)`;
 - schema técnico de migration ou nomes equivalentes:
   - histórico do migrator Kysely;
-  - tabela auxiliar imutável com nome, versão do formato canônico, checksum
-    SHA-256 e instante de aplicação.
+  - tabela auxiliar imutável com `migration_name`, `checksum_sha256`,
+    `canonicalization_version`, `applied_at`, `application_version` e
+    `migration_tool_version`.
 
 `users`, `password_credentials` e `companies` são dados globais acessados por
 repositories restritos. `memberships` é tenant-owned e recebe `company_id`,
 constraints compostas e RLS. Novas tabelas tenant-owned futuras devem seguir o
 mesmo template, sem depender de migration retroativa para habilitar isolamento.
+
+### Normalização de e-mail
+
+`EmailNormalizer` recebe o endereço informado, preserva o valor em
+`email_original` para exibição/auditoria e calcula `email_normalized` para
+lookup e unicidade:
+
+1. remover espaços no início e no fim para o valor normalizado;
+2. aplicar Unicode NFC;
+3. converter para minúsculas de modo independente de locale;
+4. normalizar o domínio por IDNA quando necessário;
+5. validar o formato antes de construir/persistir o value object.
+
+O algoritmo não remove pontos do local-part, não remove `+alias`, não conhece
+Gmail ou outro provedor e não usa `citext` como fonte de verdade. Todos os
+caminhos de criação, busca e autenticação futura reutilizam o mesmo componente
+testável; o banco apenas reforça a unicidade do resultado normalizado.
+
+### Canonicalização de migrations `v1`
+
+O runner lê UTF-8, recusa encoding inválido, remove somente BOM UTF-8 inicial,
+converte CRLF e CR para LF e preserva todo o restante. O SHA-256 é calculado
+sobre os bytes UTF-8 resultantes. Espaços, tabs, comentários, linhas vazias,
+Unicode e presença/ausência de newline final não são alterados.
+
+O runner valida todo o histórico antes de aplicar pendências. Divergência
+impede a execução e não atualiza metadados. Uma nova versão de canonicalização
+exige decisão/documentação própria e não reinterpreta silenciosamente registros
+`v1`.
+
+### Tipos e detecção de drift
+
+- `MoneyDecimal` usa `BigInt`/escala 4 no domínio e string canônica na fronteira;
+- PostgreSQL usa `numeric(24,4)`, UUID nativo e `timestamptz`;
+- SQLite usa texto decimal canônico, UUID textual validado e ISO 8601 textual;
+- instantes são UTC;
+- JSON é validado por schema antes do domínio;
+- tipos Kysely/driver/row ficam em `packages/database`.
+
+Migrations são a fonte de verdade. O futuro comando `db:verify`, parte da
+implementação da 002-A, verifica histórico/checksums e, no PostgreSQL, tabelas,
+colunas, tipos, constraints, índices, policies RLS, roles e grants. Qualquer
+drift falha sem autocorreção; a correção é sempre nova migration. SQLite não é
+prova de paridade completa.
 
 ### Roles e pools PostgreSQL
 
@@ -216,9 +296,13 @@ grants são contrato. Nenhuma senha é definida em migration versionada.
 Não há contrato HTTP neste incremento. Portas internas mínimas:
 
 ```text
+EmailNormalizer.normalize(input): EmailAddress
+MigrationCanonicalizer.v1(utf8File): CanonicalMigrationContent
+MigrationChecksum.sha256(canonicalContent): MigrationChecksum
 MigrationRunner.validateApplied(): MigrationIntegrityResult
 MigrationRunner.up(target?): MigrationExecutionResult
 MigrationRunner.down(target): MigrationExecutionResult  // apenas se segura
+DatabaseVerifier.verify(): DatabaseVerificationResult
 
 TenantTransactionRunner.run(context, work): Result
 PlatformTransactionRunner.run(context, work): Result
@@ -239,14 +323,17 @@ uso. Não deve existir `skipTenant`, `includeAllCompanies`, contexto opcional ou
 Nenhum arquivo físico é criado nesta documentação. A ordem futura proposta é:
 
 1. criar roles/ownership e schemas com grants mínimos por etapa operacional;
-2. criar infraestrutura de histórico e checksum versionado;
-3. criar `identity.users` e suas constraints após decidir normalização;
+2. criar infraestrutura de histórico/checksum com metadados da
+   canonicalização `v1`;
+3. criar `identity.users` com `email_original`, `email_normalized` e unicidade
+   global sobre o segundo;
 4. criar `identity.password_credentials` sem qualquer credencial inicial;
 5. criar `tenancy.companies`;
 6. criar `tenancy.memberships`, chaves compostas e índices;
 7. habilitar/forçar RLS e criar policies `USING`/`WITH CHECK` nas tabelas
    tenant-owned;
-8. validar catálogo, grants, policies e checksums antes de liberar tráfego.
+8. validar catálogo, grants, policies, migrations e checksums por `db:verify`
+   antes de liberar tráfego.
 
 Cada migration declara se `down` é seguro. Mudança destrutiva ou transformação
 de dados usa expandir → backfill → validar → contrair e rollback operacional por
@@ -257,7 +344,14 @@ forward fix como padrão.
 ### Unitários e arquiteturais
 
 - value objects de UUID, UTC e decimal canônico;
+- e-mail preserva `original` e produz `normalized` após espaços, NFC,
+  lowercase independente de locale e IDNA;
+- endereços equivalentes por casing/NFC/IDNA colidem em `email_normalized`;
+- pontos no local-part e aliases com `+` permanecem significativos;
+- nenhuma regra Gmail/provedor ou dependência de `citext` participa do resultado;
+- formato inválido é recusado antes do repository;
 - mappers preservam precisão e recusam valores inválidos;
+- JSON inválido não entra no domínio;
 - domínio não importa Kysely, drivers ou database;
 - repositories não oferecem método tenant sem `TenantContext`;
 - planos tenant/plataforma não compartilham tipo, factory ou bypass;
@@ -269,13 +363,21 @@ forward fix como padrão.
 - banco PostgreSQL vazio recebe todas as migrations;
 - base representativa recebe upgrade sem perda;
 - segunda execução não altera schema;
+- UTF-8 com/sem BOM e CRLF/CR/LF equivalentes geram o mesmo checksum `v1`;
+- mudança em qualquer conteúdo fora das normalizações `v1`, inclusive espaços
+  ou newline final, altera o checksum;
+- arquivo com UTF-8 inválido falha antes da migration;
 - alteração de um byte em migration aplicada impede qualquer migration nova;
-- checksum e nome são persistidos atomicamente;
+- migration, checksum, canonicalização, data e versões são persistidos
+  atomicamente;
 - correção por nova migration preserva o histórico;
 - `down` roda apenas onde declarado seguro;
 - catálogo confirma UUID, `timestamptz`, constraints, índices, RLS e grants;
-- round-trip de decimal exato não usa `number`;
-- estratégia aprovada de tipos detecta drift.
+- round-trip de decimal exato não usa `number` em nenhum mapper/driver;
+- `db:verify` detecta drift de tabelas, colunas, tipos, constraints, índices,
+  policies, roles e grants;
+- `db:verify` falha sem modificar schema, grants ou checksums;
+- SQLite nunca satisfaz o teste de paridade completa.
 
 ### Repositories, transações e isolamento PostgreSQL
 
@@ -309,9 +411,11 @@ forward fix como padrão.
 
 ## Critérios de aceite
 
-- [ ] decisões críticas de checksum, tipos/drift e e-mail aprovadas;
+- [x] decisões críticas de checksum, tipos/drift e e-mail aprovadas;
+- [ ] `email_original`/`email_normalized`, normalizador e unicidade implementados/testados;
 - [ ] Kysely existe somente nos adapters de infraestrutura;
-- [ ] migrations são externas ao startup e protegidas por checksum SHA-256;
+- [ ] migrations são externas ao startup e protegidas por checksum SHA-256 `v1`;
+- [ ] `db:verify` detecta os objetos críticos e falha sem autocorreção;
 - [ ] schema inicial de identidade/tenancy atende constraints e ownership;
 - [ ] contexts, pools, roles e repositories tenant/plataforma estão separados;
 - [ ] RLS `ENABLE` + `FORCE`, `USING` + `WITH CHECK` passa com role real;
@@ -341,11 +445,12 @@ crítico de persistência/isolamento e o diff não contiver funcionalidade de
 
 ## Pendências
 
-| ID | Criticidade | Decisão necessária | Efeito |
-|---|---|---|---|
-| PEND-002-008 | Alta/bloqueadora da 002-A | algoritmo canônico e fluxo de alteração de e-mail | define unicidade da primeira migration |
-| PEND-002-009 | Crítica/bloqueadora da 002-A | formato canônico/versionado do checksum e estratégia de tipos/drift | define o runner e os contratos de schema |
-| PEND-002-010 | Média/futura | performance, PgBouncer e failover | gate posterior de hardening/pré-produção, não reabre o spike funcional |
+| ID | Estado | Resultado/efeito |
+|---|---|---|
+| PEND-002-008 | `ENCERRADA` | normalização de e-mail e unicidade definidas; fluxo funcional de alteração pertence a incremento posterior |
+| PEND-002-009 | `ENCERRADA` | canonicalização `v1`, tipos, migrations como fonte de verdade e `db:verify` definidos |
+| PEND-002-010 | `ABERTA_NAO_BLOQUEADORA` | performance, PgBouncer e failover são gate futuro de hardening/pré-produção |
 
-Até as duas primeiras decisões serem resolvidas e existir autorização explícita,
-002-A permanece `EM_ESPECIFICACAO`.
+Não resta decisão crítica de persistência ou isolamento para iniciar este
+incremento. A 002-A está `PRONTA_PARA_IMPLEMENTAR`; isso não significa que
+código ou migration tenha sido criado nesta revisão documental.

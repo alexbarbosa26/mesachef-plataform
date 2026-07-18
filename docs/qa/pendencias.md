@@ -3,8 +3,10 @@
 ## 1. Estado
 
 - **Atualização:** 2026-07-18
-- **Spec ativa:** 002 — Identidade, Autorização e Multiempresa
-- **Estado da spec:** `EM_ESPECIFICACAO`; não pronta para implementação
+- **Spec ativa:** 002-A — Persistência e migrations de identidade
+- **Estado da spec ativa:** `PRONTA_PARA_IMPLEMENTAR`; nenhuma implementação foi realizada nesta revisão documental
+- **Estado da SPEC 002:** `EM_ESPECIFICACAO`; não pronta para implementação integral
+- **Incrementos seguintes:** 002-B–G mantêm o estado `BLOQUEADA`
 - **Próxima spec:** 003 permanece `BLOQUEADA` e não foi iniciada
 
 Este registro concentra conflitos, lacunas de decisão e hipóteses encontradas na leitura das especificações, ADRs e do projeto de referência. Nenhum item deve ser resolvido por suposição silenciosa. A prioridade indica risco para decisões futuras, não autorização para avançar de spec.
@@ -150,9 +152,9 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Resolução:** Kysely foi aceito como query builder e infraestrutura, com domínio independente, PostgreSQL 14 oficial, SQLite auxiliar e camada obrigatória de checksum SHA-256 sobre o migrator.
 - **Decisão humana original em 2026-07-18:** não aceitar a ADR 0004 antes da conclusão e revisão do spike com Kysely.
 - **Decisão humana posterior:** migrations aplicadas são imutáveis; correções usam novas migrations; nome e checksum são registrados em tabela auxiliar; divergência falha fechada; execução ocorre em etapa separada de deploy, nunca no startup da API.
-- **Decisão necessária:** nenhuma para escolha da estratégia. A implementação e
-  seus testes dependem de autorização futura; o spike de RLS foi aceito, mas a
-  SPEC 002-A continua em especificação por seus gates próprios.
+- **Decisão necessária:** nenhuma para escolha da estratégia. Os gates próprios
+  de normalização, checksum, tipos e drift foram encerrados; a implementação e
+  seus testes dependem de uma execução futura autorizada da 002-A.
 
 ## 8. Pendências da SPEC 002
 
@@ -172,8 +174,12 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 | RLS | role não-owner/`NOSUPERUSER`/`NOBYPASSRLS`, `ENABLE` + `FORCE`, `USING` + `WITH CHECK` e contexto local transacional | ADR 0006 e PEND-002-006 |
 | Separação de planos | contexts, pools, roles e repositories tenant/plataforma separados | ADR 0006; sem bypass implícito |
 | Operações globais | iterar tenants explicitamente ou usar caminho de plataforma separado e auditado | ADR 0006 |
+| Normalização de e-mail | original + normalizado; trim, NFC, lowercase independente de locale e IDNA; sem remover pontos/`+` ou aplicar regra de provedor | PEND-002-008 encerrada |
+| Checksum | SHA-256 sobre canonicalização UTF-8 `v1`, removendo BOM e normalizando CRLF/CR para LF; metadados completos e falha por divergência | PEND-002-009 encerrada |
+| Tipos | `MoneyDecimal`/`BigInt` escala 4; mappings explícitos de decimal, UUID, UTC e JSON; Kysely/driver confinados à infraestrutura | PEND-002-009 encerrada |
+| Drift | migrations são fonte de verdade; futuro `db:verify` falha sobre histórico/checksums e catálogo PostgreSQL sem autocorreção | PEND-002-009 encerrada |
 | Risco futuro | performance, PgBouncer e failover não comprovados | PEND-002-010, separada do gate encerrado |
-| Ordem | SPEC 002 e 002-A em especificação; 002-B–G e 003 bloqueadas | `EXECUTAR.md` |
+| Ordem | 002-A pronta e ativa para a próxima execução; SPEC 002 em especificação; 002-B–G e 003 bloqueadas | `EXECUTAR.md` |
 
 ### PEND-002-001 — Estratégia de persistência e migrations
 
@@ -184,10 +190,9 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 - **Impacto resultante:** a estratégia de persistência não bloqueia mais a SPEC 002-A. Nenhuma dependência ou migration definitiva está autorizada por este encerramento.
 - **Evidência:** `docs/qa/spikes/spec-002-kysely-persistence.md`, ADR 0004 e `docs/qa/evidencias/spec-002.md`, seção 16.
 - **Fitness functions futuras:** impedir imports de Kysely no domínio; validar drift dos tipos; alterar migration aplicada deve falhar pelo checksum; API deve iniciar sem executar migrations; validações finais devem passar em PostgreSQL 14.
-- **Decisão humana registrada:** o aceite da ADR não libera implementação. O
-  spike de RLS foi posteriormente aceito; a SPEC 002-A continua em
-  especificação até resolver normalização de e-mail, checksum canônico,
-  tipos/drift e receber autorização explícita.
+- **Decisão humana registrada:** o aceite da ADR não implementa código. O spike
+  de RLS e os gates de normalização, checksum, tipos e drift foram aceitos; a
+  SPEC 002-A está `PRONTA_PARA_IMPLEMENTAR` e requer execução autorizada própria.
 - **Decisão necessária:** nenhuma para esta pendência; cumprir a ADR em execução futura autorizada.
 
 ### PEND-002-002 — Associação multiempresa e empresa ativa
@@ -246,8 +251,9 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
   contexts/pools/roles tenant e plataforma separados; nenhum bypass implícito
   de superadmin ou variável global de processo.
 - **Impacto resultante:** o gate técnico de isolamento não bloqueia mais a
-  002-A. A sub-spec não é liberada automaticamente: continua
-  `EM_ESPECIFICACAO` por outros gates e exige autorização explícita.
+  002-A. Com os demais gates documentais agora resolvidos, a sub-spec está
+  `PRONTA_PARA_IMPLEMENTAR`, ainda sem autorização retroativa para código nesta
+  execução documental.
 - **Evidência:** `docs/qa/spikes/spec-002-postgres-rls.md`, ADR 0006 e SPEC 002, seções 17, 18.6 e 21.3.
 - **Risco preservado:** a credencial tenant permite solicitar `set_config` com
   um UUID; deve ficar no backend confiável, que deriva e valida a empresa.
@@ -268,34 +274,53 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
 
 ### PEND-002-008 — Normalização e alteração de e-mail
 
-- **Prioridade:** Alta; bloqueadora da prontidão da 002-A.
-- **Status:** aberta; decisão necessária antes da primeira migration de usuário.
-- **Descrição:** a unicidade depende de uma normalização global estável, mas não foram decididos Unicode, case folding, alteração de endereço e revalidação.
-- **Impacto:** risco de contas duplicadas, bloqueio indevido ou tomada de conta durante mudança de e-mail.
-- **Evidência:** SPEC 002, invariantes e `DEC-002-013`.
-- **Recomendação:** definir algoritmo único antes da primeira migration e tratar mudança como operação verificada, auditada e revogadora de sessões quando aplicável.
-- **Decisão necessária:** regra canônica e fluxo de alteração.
+- **Prioridade:** resolvida em 2026-07-18 por decisão humana.
+- **Status:** encerrada quanto ao gate de persistência da 002-A.
+- **Descrição original:** a unicidade dependia de uma normalização global estável,
+  mas Unicode, case folding e limites de regras por provedor não estavam decididos.
+- **Decisão:** persistir `email_original` para exibição/auditoria e
+  `email_normalized` para autenticação/unicidade; remover espaços nas
+  extremidades, aplicar NFC, lowercase independente de locale e IDNA no domínio
+  quando necessário; validar antes de persistir e centralizar a regra em
+  componente de domínio ou serviço compartilhado testável.
+- **Limites explícitos:** não remover pontos do local-part nem aliases com `+`;
+  não aplicar regras de Gmail ou outro provedor; não usar `citext` como fonte
+  principal; criar unicidade sobre `email_normalized`.
+- **Impacto resultante:** a primeira migration de usuário possui campos e regra
+  de unicidade definidos. Um fluxo funcional futuro de alteração/revalidação de
+  e-mail deve ser especificado antes de seu endpoint, mas não bloqueia a
+  persistência inicial nem reabre esta pendência.
+- **Evidência:** SPEC 002, SPEC 002-A, ADR 0004 e
+  `docs/qa/evidencias/spec-002.md`.
+- **Decisão necessária:** nenhuma para a 002-A.
 
 ### PEND-002-009 — Checksum canônico e tipos de tabela
 
-- **Prioridade:** Crítica; bloqueadora da prontidão da 002-A.
-- **Status:** aberta.
-- **Descrição:** a ADR 0004 exige checksum SHA-256 e detecção de drift, mas
-  ainda não define a representação canônica/versionada que será hasheada nem se
-  os tipos de tabela serão mantidos manualmente, gerados ou introspectados.
-- **Impacto:** implementar sem decisão pode produzir checksums diferentes entre
-  ambientes, falsa detecção de adulteração ou drift silencioso entre schema e
-  TypeScript.
-- **Evidência:** ADR 0004, seções de migrations, fitness functions e questões
-  abertas; relatório do spike Kysely, riscos 1–3.
-- **Opções:** fonte TypeScript canônica normalizada com versão de formato;
-  artefato SQL determinístico; geração/introspecção em CI com comparação de
-  drift. A escolha deve permanecer confinada a `packages/database`.
-- **Recomendação:** executar uma decisão documental curta/prova automatizada
-  sobre duas máquinas/line endings, então registrar formato, algoritmo de
-  ordenação/encoding e comando de drift na ADR 0004/002-A.
-- **Decisão necessária:** representação de entrada do SHA-256, versão do formato
-  e estratégia verificável de tipos/drift.
+- **Prioridade:** resolvida em 2026-07-18 por decisão humana.
+- **Status:** encerrada; os gates de checksum, tipos e drift da 002-A estão definidos.
+- **Checksum decidido:** SHA-256 sobre arquivo interpretado como UTF-8; remover
+  BOM UTF-8, normalizar CRLF e CR para LF e preservar todo o restante. Registrar
+  `canonicalization_version` `v1`, migration, checksum, data, versão da aplicação
+  e versão da ferramenta. Divergência bloqueia; migration aplicada não é editada
+  e correções exigem nova migration.
+- **Execução decidida:** migrations rodam em etapa separada do deploy e nunca no
+  startup normal da API.
+- **Tipos decididos:** `MoneyDecimal` usa `BigInt`/escala 4; PostgreSQL usa
+  `numeric(24,4)`, UUID nativo e `timestamptz`; SQLite usa texto decimal canônico,
+  UUID textual validado e ISO 8601 textual; tudo em UTC. O driver nunca converte
+  `numeric` em `number`; JSON entra no domínio somente após schema; tipos de
+  Kysely/driver ficam na infraestrutura.
+- **Drift decidido:** migrations são a fonte de verdade e alterações manuais são
+  proibidas. O futuro `db:verify` verifica migrations/checksums e, no PostgreSQL,
+  tabelas, colunas, tipos, constraints, índices, policies RLS, roles e grants;
+  drift falha, não é corrigido automaticamente e exige nova migration. SQLite
+  não prova paridade completa.
+- **Tipos de tabela:** manutenção manual, geração ou introspecção permanece
+  detalhe substituível dentro de `packages/database`, não fonte de verdade nem
+  gate arquitetural, desde que os limites e o `db:verify` sejam cumpridos.
+- **Evidência:** ADR 0004, SPEC 002-A, relatório do spike Kysely e
+  `docs/qa/evidencias/spec-002.md`.
+- **Decisão necessária:** nenhuma para a 002-A.
 
 ### PEND-002-010 — Performance RLS, PgBouncer e failover
 
@@ -303,6 +328,8 @@ Ao resolver um item, registrar data, decisor, decisão, documento alterado e evi
   pré-produtiva correspondente.
 - **Status:** aberta e deliberadamente separada do gate técnico encerrado em
   `PEND-002-006`.
+- **Efeito sobre a 002-A:** não bloqueia a implementação inicial; torna-se gate
+  somente quando a topologia pré-produtiva correspondente for definida.
 - **Descrição:** o spike não mediu overhead/planos com schema e volume reais,
   não usou PgBouncer e não simulou failover ou reconexão.
 - **Impacto:** uma topologia futura pode mudar pooling, lifecycle de transação,

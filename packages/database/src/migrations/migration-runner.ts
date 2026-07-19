@@ -79,14 +79,20 @@ function migrationProviderForArtifacts(
       }
 
       const down = async (database: Kysely<unknown>): Promise<void> => {
+        await artifact.migration.down?.(database);
+
         const migrationDatabase =
           database as Kysely<MigrationInfrastructureDatabase>;
+        const checksumTableStillExists = (
+          await migrationDatabase.introspection.getTables()
+        ).some(({ name }) => name === MIGRATION_CHECKSUM_TABLE);
 
-        await migrationDatabase
-          .deleteFrom(MIGRATION_CHECKSUM_TABLE)
-          .where('migration_name', '=', artifact.name)
-          .executeTakeFirstOrThrow();
-        await artifact.migration.down?.(database);
+        if (checksumTableStillExists) {
+          await migrationDatabase
+            .deleteFrom(MIGRATION_CHECKSUM_TABLE)
+            .where('migration_name', '=', artifact.name)
+            .executeTakeFirstOrThrow();
+        }
       };
 
       return [artifact.name, { down, up } satisfies Migration] as const;

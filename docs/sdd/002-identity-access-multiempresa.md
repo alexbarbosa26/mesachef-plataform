@@ -664,7 +664,12 @@ continuam riscos futuros não validados pelo spike.
 
 ## 18. Persistência e migrations propostas
 
-Esta seção descreve intenção. **Nenhuma migration definitiva foi criada.** As migrations experimentais do spike usam somente objetos `spike_rls_*`, foram revertidas e não definem nomes ou ordem do schema real.
+Esta seção descreve a intenção agregada. As migrations definitivas `0001` a
+`0006` dos incrementos 002-A1/002-A2 já foram criadas e validadas para a
+infraestrutura de integridade e o schema inicial de identidade/tenancy. Roles,
+grants, RLS, repositories, sessões, RBAC e migrations posteriores permanecem
+não implementados. As migrations experimentais dos spikes usam somente objetos
+`spike_*`, foram revertidas e não definem o schema real.
 
 ### 18.1 Incremento 002-A — infraestrutura, identidade e tenancy inicial
 

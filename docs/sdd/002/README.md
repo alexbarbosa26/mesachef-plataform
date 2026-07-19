@@ -4,7 +4,7 @@
 
 - **Iniciativa agregadora:** SPEC 002 — `EM_ESPECIFICACAO`
 - **Atualização:** 2026-07-18
-- **Implementação nesta revisão:** somente 002-A1, concluído e validado
+- **Implementação acumulada:** 002-A1 e 002-A2 concluídos e validados
 - **Avanço automático:** não
 - **Próxima spec principal:** SPEC 003 — `BLOQUEADA`
 
@@ -19,7 +19,7 @@ ordem.
 
 | Incremento | Documento | Estado atual | Dependência de execução |
 |---|---|---|---|
-| 002-A | `002-a-persistencia-migrations.md` | `EM_IMPLEMENTACAO` | 002-A1 concluído; 002-A2 e seguintes sem autorização |
+| 002-A | `002-a-persistencia-migrations.md` | `EM_IMPLEMENTACAO` | 002-A1 e 002-A2 concluídos; 002-A3/002-A4 bloqueados sem autorização |
 | 002-B | `002-b-autenticacao-sessoes.md` | `BLOQUEADA` | 002-A concluída e decisões de autenticação aprovadas |
 | 002-C | `002-c-empresas-memberships.md` | `BLOQUEADA` | 002-B concluída e regras cadastrais aprovadas |
 | 002-D | `002-d-rbac-permissoes.md` | `BLOQUEADA` | 002-C concluída e matriz RBAC aprovada |
@@ -53,11 +53,14 @@ posteriores encerraram também os gates de e-mail e governança do schema:
 `PEND-002-008` e `PEND-002-009` estão encerradas. Não existe outra decisão
 crítica de persistência/isolamento para o escopo inicial. A execução autorizada
 de 002-A1 entregou a infraestrutura Kysely, tipos exatos, migrator separado e
-checksum SHA-256/canonicalização `v1`; por isso a 002-A está
-`EM_IMPLEMENTACAO`. `PEND-002-010` permanece aberta para performance RLS,
-PgBouncer e failover, sem bloquear a implementação inicial. Nenhum schema de
-identidade/tenancy, repository, role ou policy RLS definitiva foi criado, e
-002-A2 continua sem autorização.
+checksum SHA-256/canonicalização `v1`. A 002-A2 entregou os schemas/tabelas
+iniciais de identidade e tenancy, constraints, índices e migrations
+versionadas, com validação PostgreSQL 14 e SQLite auxiliar. Por isso a 002-A
+permanece `EM_IMPLEMENTACAO`, agora com A1/A2 concluídos. `PEND-002-010`
+permanece aberta para performance RLS, PgBouncer e failover, sem bloquear a
+implementação inicial. Repositories, contextos, `db:verify`, roles, grants e
+policies RLS definitivas não foram criados; 002-A3 e 002-A4 continuam sem
+autorização.
 
 ## Rastreabilidade arquitetural
 

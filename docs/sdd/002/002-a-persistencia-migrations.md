@@ -4,24 +4,28 @@
 
 - **Estado:** `EM_IMPLEMENTACAO`
 - **Atualização:** 2026-07-18
-- **Implementação executada nesta revisão:** somente 002-A1 — infraestrutura
-  Kysely, tipos, migrator e checksum
-- **Motivo:** 002-A1 foi implementado e validado; os schemas, repositories,
-  contextos e controles de isolamento dos incrementos seguintes não foram
-  autorizados nem iniciados.
+- **Implementação executada até esta revisão:** 002-A1 — infraestrutura
+  Kysely, tipos, migrator e checksum; 002-A2 — schemas, tabelas, constraints,
+  índices e migrations iniciais de identidade/tenancy
+- **Motivo:** 002-A1 e 002-A2 foram implementados e validados. Repositories,
+  `db:verify`, contextos, roles, grants e RLS definitivos permanecem fora do
+  escopo entregue e dependem de autorização própria.
 
 ### Controle incremental
 
 | Incremento | Escopo | Estado | Evidência |
 |---|---|---|---|
 | 002-A1 | Kysely/drivers, tipos exatos, migrator separado, SHA-256 e canonicalização `v1` | `CONCLUIDO` | `docs/qa/evidencias/spec-002-a.md` |
-| 002-A2 e seguintes | schema de identidade/tenancy, `db:verify`, repositories, contextos, roles e RLS definitivos | `BLOQUEADOS` | exigem nova autorização explícita |
+| 002-A2 | schemas, tabelas, constraints, índices e migrations iniciais de identidade/tenancy | `CONCLUIDO` | `docs/qa/evidencias/spec-002-a.md` |
+| 002-A3 | próximo incremento da persistência; escopo exato a confirmar em execução própria | `BLOQUEADO` | dependência técnica atendida, sem autorização humana |
+| 002-A4 | incremento dependente das conclusões de 002-A2 e 002-A3 | `BLOQUEADO` | não autorizado |
 
 ## Contexto
 
-A fundação técnica ainda não possui persistência de negócio. A execução
-incremental começou pela fronteira definitiva entre domínio e infraestrutura,
-sem criar tabelas de identidade ou tenancy. Os spikes provaram
+A fundação técnica agora possui a infraestrutura governada de migrations e o
+schema inicial de identidade/tenancy, ainda sem consumers de runtime. A
+execução incremental começou pela fronteira definitiva entre domínio e
+infraestrutura. Os spikes provaram
 Kysely no PostgreSQL 14/SQLite auxiliar e uma mecânica segura de RLS no
 PostgreSQL 14 com transações e pool; os objetos experimentais não são schema a
 copiar.
@@ -329,20 +333,24 @@ uso. Não deve existir `skipTenant`, `includeAllCompanies`, contexto opcional ou
 
 ## Migrations
 
-Nenhum arquivo físico é criado nesta documentação. A ordem futura proposta é:
+As migrations físicas implementadas e imutáveis até a 002-A2 são:
 
-1. criar roles/ownership e schemas com grants mínimos por etapa operacional;
-2. criar infraestrutura de histórico/checksum com metadados da
-   canonicalização `v1`;
-3. criar `identity.users` com `email_original`, `email_normalized` e unicidade
-   global sobre o segundo;
-4. criar `identity.password_credentials` sem qualquer credencial inicial;
-5. criar `tenancy.companies`;
-6. criar `tenancy.memberships`, chaves compostas e índices;
-7. habilitar/forçar RLS e criar policies `USING`/`WITH CHECK` nas tabelas
-   tenant-owned;
-8. validar catálogo, grants, policies, migrations e checksums por `db:verify`
-   antes de liberar tráfego.
+1. `0001_create_migration_integrity.mjs` — histórico auxiliar/checksum `v1`;
+2. `0002_create_identity_tenancy_namespaces.mjs` — schemas PostgreSQL
+   `identity` e `tenancy`; no-op explícito no SQLite;
+3. `0003_create_identity_users.mjs` — identidade global e unicidade exata de
+   `email_normalized`;
+4. `0004_create_identity_password_credentials.mjs` — estrutura 1:1 vazia,
+   sem seed, hashing ou credencial inicial;
+5. `0005_create_tenancy_companies.mjs` — catálogo global de empresas;
+6. `0006_create_tenancy_memberships.mjs` — vínculo tenant-owned, FKs,
+   unicidades compostas e índices iniciais.
+
+Permanecem para incrementos próprios, sem autorização nesta execução:
+
+7. `db:verify`, tipos/inspectors de catálogo, repositories e contextos;
+8. ownership, roles, grants, RLS e policies definitivas antes de qualquer
+   tráfego tenant-owned.
 
 Cada migration declara se `down` é seguro. Mudança destrutiva ou transformação
 de dados usa expandir → backfill → validar → contrair e rollback operacional por
@@ -421,19 +429,22 @@ forward fix como padrão.
 ## Critérios de aceite
 
 - [x] decisões críticas de checksum, tipos/drift e e-mail aprovadas;
-- [ ] `email_original`/`email_normalized`, normalizador e unicidade implementados/testados;
+- [x] `email_original`/`email_normalized` e unicidade exata implementados/testados na persistência;
+- [ ] normalizador central de e-mail implementado/testado antes do primeiro write funcional;
 - [x] Kysely existe somente nos adapters de infraestrutura;
 - [x] migrations são externas ao startup e protegidas por checksum SHA-256 `v1`;
 - [ ] `db:verify` detecta os objetos críticos e falha sem autocorreção;
-- [ ] schema inicial de identidade/tenancy atende constraints e ownership;
+- [x] schema inicial de identidade/tenancy atende tabelas, constraints e índices da 002-A2;
+- [ ] ownership, roles e grants definitivos atendem o plano de menor privilégio;
 - [ ] contexts, pools, roles e repositories tenant/plataforma estão separados;
 - [ ] RLS `ENABLE` + `FORCE`, `USING` + `WITH CHECK` passa com role real;
 - [ ] contexto transacional desaparece após commit/rollback e não vaza no pool;
 - [ ] filtros explícitos e testes de IDOR passam independentemente da RLS;
-- [ ] migrations e isolamento passam no PostgreSQL 14;
+- [x] migrations iniciais e suas invariantes estruturais passam no PostgreSQL 14;
+- [ ] isolamento definitivo passa no PostgreSQL 14 com roles, repositories e RLS reais;
 - [x] SQLite está documentado somente como auxiliar;
-- [x] lint, typecheck, testes, build e auditorias passam para o escopo 002-A1;
-- [x] evidências e documentação de 002-A1 são atualizadas sem secret.
+- [x] lint, typecheck, testes, build e auditorias passam para os escopos 002-A1 e 002-A2;
+- [x] evidências e documentação de 002-A1/002-A2 são atualizadas sem secret.
 
 Os itens marcados para 002-A1 devem ser reexecutados no gate final da 002-A;
 eles não antecipam o aceite dos itens ainda abertos.
@@ -463,6 +474,9 @@ crítico de persistência/isolamento e o diff não contiver funcionalidade de
 | PEND-002-009 | `ENCERRADA` | canonicalização `v1`, tipos, migrations como fonte de verdade e `db:verify` definidos |
 | PEND-002-010 | `ABERTA_NAO_BLOQUEADORA` | performance, PgBouncer e failover são gate futuro de hardening/pré-produção |
 
-Não resta decisão crítica de persistência ou isolamento para iniciar este
-incremento. A 002-A está `EM_IMPLEMENTACAO`: somente 002-A1 está concluído e
-002-A2 ou qualquer etapa posterior depende de nova autorização explícita.
+Não resta decisão crítica de persistência ou isolamento para os incrementos já
+executados. A 002-A permanece `EM_IMPLEMENTACAO`: 002-A1 e 002-A2 estão
+concluídos; 002-A3 e 002-A4 continuam bloqueados até nova autorização humana.
+Antes de qualquer acesso runtime a `memberships`, a imutabilidade dos vínculos,
+repositories, grants e RLS precisam ser implementados e validados no incremento
+explicitamente autorizado correspondente.

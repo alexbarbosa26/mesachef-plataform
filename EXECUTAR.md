@@ -54,9 +54,9 @@ preproduction_database: "PostgreSQL 14"
 ```
 
 O modo acima mantém a 002-A ativa durante sua implementação incremental. A
-002-A1 está concluída. Após a configuração da esteira multiagente, 002-A2 é o
-próximo incremento autorizado para uma nova execução em modo `implementation`;
-esta execução de configuração não implementa nem inicia esse incremento.
+002-A1 e a 002-A2 estão concluídas nos respectivos escopos autorizados. A
+002-A3 permanece bloqueada e depende de nova autorização humana; esta execução
+não a libera nem a inicia automaticamente.
 
 ### Modos possíveis
 
@@ -139,7 +139,7 @@ active_spec:
   file: "docs/sdd/002/002-a-persistencia-migrations.md"
   state: "EM_IMPLEMENTACAO"
   owner: "Alex"
-  objective: "Implementar somente 002-A2 em uma nova execução, usando a esteira multiagente e sem iniciar 002-A3 ou 002-A4."
+  objective: "Preservar 002-A1 e 002-A2 concluídas e aguardar autorização humana explícita antes de iniciar 002-A3 ou 002-A4."
   parent_spec:
     id: "002"
     state: "EM_ESPECIFICACAO"
@@ -152,12 +152,12 @@ active_spec:
     "002-F": "BLOQUEADA"
     "002-G": "BLOQUEADA"
   subincrement_control:
-    last_completed: "002-A1"
-    next_authorized: "002-A2"
-    authorization_effective_after: "configuração da esteira multiagente"
+    last_completed: "002-A2"
+    next_planned: "002-A3"
+    next_authorized: false
     states:
       "002-A1": "CONCLUIDA"
-      "002-A2": "PRONTA_PARA_IMPLEMENTAR"
+      "002-A2": "CONCLUIDA"
       "002-A3": "BLOQUEADA"
       "002-A4": "BLOQUEADA"
     dependencies:
@@ -171,13 +171,13 @@ active_spec:
 | Incremento | Estado | Dependências | Autorização |
 |---|---|---|---|
 | 002-A1 | `CONCLUIDA` | — | encerrada com evidências |
-| 002-A2 | `PRONTA_PARA_IMPLEMENTAR` | 002-A1 | próximo incremento autorizado após esta configuração; não iniciado |
-| 002-A3 | `BLOQUEADA` | conclusão da 002-A2 | não autorizada |
+| 002-A2 | `CONCLUIDA` | 002-A1 | encerrada com evidências; sem avanço automático |
+| 002-A3 | `BLOQUEADA` | conclusão da 002-A2 | dependência técnica atendida, mas não autorizada pelo responsável |
 | 002-A4 | `BLOQUEADA` | conclusões da 002-A2 e 002-A3 | não autorizada |
 
 Análise de incrementos bloqueados pode ocorrer em modo somente leitura, mas
-nenhum agente escritor pode implementá-los. A autorização da 002-A2 não permite
-execução simultânea ou antecipada de 002-A3/002-A4.
+nenhum agente escritor pode implementá-los. A conclusão da 002-A2 não concede
+autorização para execução simultânea ou antecipada de 002-A3/002-A4.
 
 Para mudar a spec ativa, atualizar este bloco antes de iniciar a execução.
 
@@ -600,8 +600,9 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 - [x] Preparar 002-A como spec ativa e o modo `implementation` para a próxima execução, sem implementar nesta revisão documental.
 - [x] Implementar e validar somente 002-A1 — infraestrutura Kysely, tipos, migrator e checksum `v1`.
 - [x] Autorizar 002-A2 como próximo incremento após configurar a esteira multiagente.
-- [ ] Implementar 002-A2 em uma nova execução, sem avanço automático.
-- [ ] Concluir 002-A2 antes de liberar 002-A3.
+- [x] Implementar 002-A2 em uma nova execução, sem avanço automático.
+- [x] Concluir 002-A2 antes de avaliar a liberação de 002-A3.
+- [ ] Obter autorização humana explícita antes de liberar ou iniciar 002-A3.
 - [ ] Concluir 002-A2 e 002-A3 antes de liberar 002-A4.
 - [ ] Resolver as decisões críticas da SPEC 002.
 - [ ] Executar a 002-A em uma execução de implementação explicitamente autorizada.
@@ -614,23 +615,25 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 last_execution:
   date: "2026-07-18"
   spec: "002-A"
-  increment: "CONFIGURACAO_MULTIAGENTE"
-  mode: "configuration"
+  increment: "002-A2"
+  mode: "implementation"
   status: "CONCLUIDO"
-  summary: "Esteira multiagente project-scoped configurada com seis agentes especializados, máximo de seis threads e profundidade um. Análise/revisão são somente leitura e somente implementation_worker pode escrever, uma instância por branch. 002-A1 permanece CONCLUIDA; 002-A2 torna-se o próximo incremento PRONTA_PARA_IMPLEMENTAR após esta configuração; 002-A3 depende da conclusão de 002-A2 e 002-A4 depende das conclusões de 002-A2/002-A3. Nenhum subagente foi executado e nenhum código de aplicação, banco ou migration foi alterado."
+  summary: "002-A2 implementada pelo fluxo multiagente por fases: schemas de identidade/tenancy, users, password_credentials, companies e memberships, com constraints, índices, rollback protegido e testes de catálogo no PostgreSQL 14 e SQLite auxiliar. A migration 0001 e a infraestrutura da 002-A1 foram preservadas. Nenhum login, hashing, sessão, endpoint, frontend, repository, role, grant ou policy RLS foi implementado. A SPEC 002-A permanece EM_IMPLEMENTACAO e 002-A3/002-A4 continuam bloqueadas sem autorização automática."
   tests:
-    - "Parse dos sete arquivos TOML: aprovado."
-    - "Schema dos agentes: nomes, descrições, instruções, sandboxes e approval policies validados."
-    - "Grafo 002-A1→002-A4 e regras de orquestração: validação estática aprovada."
-    - "git diff --check e auditoria de secrets: aprovados."
-    - "Escopo: nenhum arquivo em apps/, packages/, infra/ ou migrations alterado."
+    - "pnpm check: lint, boundaries, contrato estático do Compose, typecheck, 44 testes unitários, 17 testes de integração, 7 testes PostgreSQL e build aprovados."
+    - "pnpm test:sqlite: 7 testes aprovados."
+    - "PostgreSQL local validado explicitamente na major version 14; migrations up/down, catálogo, constraints, índices, cenários negativos, tamper e limpeza aprovados."
+    - "SQLite auxiliar: migrations, constraints e índices compatíveis validados; não utilizado como prova de paridade completa."
+    - "pnpm audit e pnpm audit --prod: nenhuma vulnerabilidade conhecida."
+    - "git diff --check, auditoria de secrets e revisão de escopo: aprovados."
   blockers:
-    - "002-A3 permanece bloqueada até a conclusão da 002-A2."
+    - "002-A3 permanece bloqueada até autorização humana explícita, embora a dependência 002-A2 esteja concluída."
     - "002-A4 permanece bloqueada até as conclusões da 002-A2 e 002-A3."
-    - "Matriz/delegação RBAC, MFA/bootstrap, recuperação e auditoria continuam como gates da SPEC 002 e dos incrementos posteriores."
+    - "Normalizador de e-mail, db:verify, repositories, unidade de trabalho, contexts, roles/grants e RLS permanecem em incrementos posteriores."
+    - "Imutabilidade de user_id/company_id de membership deve ser garantida antes de haver escrita em runtime, pelas camadas autorizadas de aplicação e banco."
   future_risks:
     - "PEND-002-010: performance RLS, PgBouncer e failover exigem validação futura separada e não bloqueiam a implementação inicial."
-  next_recommended_action: "Em nova execução de implementation, orquestrar análise paralela, consolidar o plano e implementar somente 002-A2 com um único implementation_worker. Não iniciar 002-A3, 002-A4, 002-B nem avançar a SPEC 002/003."
+  next_recommended_action: "Revisar humanamente as evidências da 002-A2 e, somente em nova execução explicitamente autorizada, avaliar o início da 002-A3. Não iniciar 002-A3, 002-A4, 002-B nem avançar a SPEC 002/003 automaticamente."
 ```
 
 O Codex deve atualizar esse bloco ao final de cada execução relevante.

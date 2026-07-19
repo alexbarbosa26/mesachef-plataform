@@ -683,7 +683,70 @@ PRÓXIMO PASSO RECOMENDADO:
 
 ---
 
-## 20. Regra final
+## 20. Orquestração multiagente
+
+### 20.1 Autoridade e limites
+
+O agente principal é o orquestrador e permanece responsável pela decisão final,
+pela consolidação dos resultados e pelo cumprimento de `AGENTS.md`,
+`EXECUTAR.md`, specs e ADRs.
+
+Regras obrigatórias:
+
+1. o agente principal é o orquestrador;
+2. somente um agente escritor pode alterar uma branch por vez;
+3. agentes de análise e revisão podem trabalhar em paralelo, desde que sejam
+   somente leitura;
+4. incrementos dependentes não podem ser implementados simultaneamente;
+5. o orquestrador deve esperar todos os agentes da fase antes de avançar;
+6. resultados dos agentes devem ser consolidados e conflitos resolvidos antes
+   da implementação;
+7. após a implementação, revisores devem trabalhar em paralelo quando suas
+   análises forem independentes;
+8. o agente escritor deve corrigir os achados que o orquestrador aprovar, sem
+   ampliar o escopo;
+9. o gate final exige lint, limites arquiteturais quando disponíveis,
+   typecheck, testes aplicáveis e build;
+10. subagentes não podem fazer commit, push, merge, rebase, deploy ou alterar
+   histórico;
+11. nenhum subagente pode acessar ou alterar produção;
+12. a liberação do próximo incremento continua dependendo de autorização
+    humana explícita, mesmo quando todos os gates técnicos passarem.
+
+Subagentes não podem criar outros subagentes; a profundidade máxima da
+orquestração é um.
+
+### 20.2 Fases da esteira
+
+1. **Preparação e análise:** o orquestrador pode executar em paralelo
+   `spec_guard`, `database_architect`, `security_reviewer` e `test_architect`.
+2. **Consolidação:** o orquestrador espera todos, elimina duplicações, resolve
+   divergências e publica um único plano verificável. Qualquer bloqueio do
+   `spec_guard` impede a fase de escrita.
+3. **Implementação:** somente uma instância de `implementation_worker` recebe o
+   plano consolidado e o incremento autorizado.
+4. **Revisão pós-implementação:** `integration_reviewer`,
+   `security_reviewer`, `database_architect` e `test_architect` podem revisar em
+   paralelo, todos em modo somente leitura.
+5. **Correção:** o mesmo agente escritor corrige apenas achados aprovados pelo
+   orquestrador; uma nova rodada de revisão é exigida quando a correção alterar
+   comportamento ou persistência.
+6. **Gate final:** o orquestrador executa ou confirma as validações obrigatórias,
+   consolida as evidências e encerra o incremento sem avançar automaticamente.
+
+### 20.3 Dependências e segurança operacional
+
+- o grafo de dependências registrado em `EXECUTAR.md` é vinculante;
+- um incremento bloqueado pode ser analisado, mas não implementado;
+- análises paralelas não concedem autorização de escrita;
+- a configuração project-scoped em `.codex/` só é considerada ativa quando o
+  repositório estiver confiável e os agentes forem carregados corretamente;
+- sandbox e instruções dos agentes são controles complementares; não substituem
+  revisão do orquestrador, autorização humana nem isolamento de produção.
+
+---
+
+## 21. Regra final
 
 Priorize:
 

@@ -1,0 +1,6 @@
+# Configuração project-scoped do MesaChef Platform.
+# Esta camada só deve ser usada quando o repositório estiver marcado como confiável.
+
+[agents]
+max_threads = 6
+max_depth = 1

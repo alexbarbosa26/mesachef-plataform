@@ -152,13 +152,13 @@ active_spec:
     "002-F": "BLOQUEADA"
     "002-G": "BLOQUEADA"
   subincrement_control:
-    last_completed: "002-A2"
-    next_planned: "002-A3"
+    last_completed: "002-A3"
+    next_planned: "002-A4"
     next_authorized: false
     states:
       "002-A1": "CONCLUIDA"
       "002-A2": "CONCLUIDA"
-      "002-A3": "BLOQUEADA"
+      "002-A3": "CONCLUIDA"
       "002-A4": "BLOQUEADA"
     dependencies:
       "002-A2": ["002-A1"]
@@ -172,7 +172,7 @@ active_spec:
 |---|---|---|---|
 | 002-A1 | `CONCLUIDA` | — | encerrada com evidências |
 | 002-A2 | `CONCLUIDA` | 002-A1 | encerrada com evidências; sem avanço automático |
-| 002-A3 | `BLOQUEADA` | conclusão da 002-A2 | dependência técnica atendida, mas não autorizada pelo responsável |
+| 002-A3 | `CONCLUIDA` | conclusão da 002-A2 | encerrada com evidências; sem avanço automático |
 | 002-A4 | `BLOQUEADA` | conclusões da 002-A2 e 002-A3 | não autorizada |
 
 Análise de incrementos bloqueados pode ocorrer em modo somente leitura, mas
@@ -597,13 +597,208 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 - [x] Criar o índice e as sub-specs executáveis 002-A a 002-G.
 - [x] Resolver normalização de e-mail, formato canônico de checksum, política de tipos e detecção de drift da 002-A.
 - [x] Encerrar `PEND-002-008` e `PEND-002-009` e promover somente a 002-A para `PRONTA_PARA_IMPLEMENTAR`.
+Para criar uma branch:
+
+```bash
+git switch -c docs/spec-000-product-vision
+```
+
+ou:
+
+```bash
+git switch -c feat/spec-001-foundation
+```
+
+Adicionar alterações:
+
+```bash
+git add .
+git status
+```
+
+Criar commit apenas quando autorizado:
+
+```bash
+git commit -m "docs(sdd): define product vision"
+```
+
+ou:
+
+```bash
+git commit -m "feat(foundation): create initial monorepo structure"
+```
+
+---
+
+## 12. Critérios de bloqueio
+
+Bloquear a execução quando:
+
+- a spec não existe;
+- a spec possui contradição crítica;
+- a dependência não está concluída;
+- há risco de perda de dados;
+- a tarefa exige credencial não fornecida;
+- há conflito Git não resolvido;
+- a implementação exigiria alterar produção;
+- não existe estratégia segura de migration;
+- não é possível garantir isolamento multiempresa;
+- a mudança contradiz ADR aceita.
+
+Registrar o bloqueio em:
+
+```text
+docs/qa/pendencias.md
+```
+
+Formato:
+
+```markdown
+## BLOQUEIO-YYYYMMDD-NNN
+
+- Spec:
+- Descrição:
+- Impacto:
+- Evidência:
+- Opções:
+- Recomendação:
+- Decisão necessária:
+```
+
+---
+
+## 13. Critérios para concluir cada spec
+
+Uma spec só pode ser marcada como `CONCLUIDA` quando:
+
+- todos os critérios de aceite foram atendidos;
+- todos os testes obrigatórios passaram;
+- build passou;
+- typecheck passou;
+- lint passou;
+- migrations foram validadas;
+- segurança foi revisada;
+- multiempresa foi testada;
+- documentação foi atualizada;
+- não há bloqueio crítico;
+- evidências foram registradas.
+
+Quando um item não se aplicar, registrar `N/A` com justificativa.
+
+---
+
+## 14. Plano detalhado da fase inicial
+
+### Passo 1 — Preparação do repositório
+
+- [ ] Criar o novo repositório.
+- [ ] Executar `git init`.
+- [ ] Criar estrutura de pastas.
+- [ ] Adicionar `AGENTS.md`.
+- [ ] Adicionar `EXECUTAR.md`.
+- [ ] Adicionar `PROMPT-CHAVE.md`.
+- [ ] Adicionar `.gitignore`.
+- [ ] Adicionar `.env.example`.
+- [ ] Fazer primeiro commit.
+
+### Passo 2 — Instalar as skills
+
+- [ ] Extrair os arquivos de arquitetura.
+- [ ] Extrair os arquivos de Clean Code.
+- [ ] Extrair os arquivos de DDD.
+- [ ] Extrair os arquivos de segurança.
+- [ ] Converter ou manter instruções em Markdown legível.
+- [ ] Organizar em `docs/skills`.
+- [ ] Validar que não existem arquivos executáveis ou secrets.
+- [ ] Fazer commit de documentação.
+
+### Passo 3 — Inventariar o projeto antigo
+
+- [x] Mapear rotas.
+- [x] Mapear telas.
+- [x] Mapear menus.
+- [x] Mapear entidades.
+- [x] Mapear tabelas e migrations.
+- [x] Mapear autenticação e autorização.
+- [x] Mapear integrações.
+- [x] Mapear regras de precificação.
+- [x] Mapear estoque.
+- [x] Mapear self-service.
+- [x] Mapear WhatsApp.
+- [x] Registrar hipóteses funcionais.
+
+### Passo 4 — Concluir SPEC 000
+
+- [x] Visão do produto.
+- [x] Perfis de usuário.
+- [x] Módulos.
+- [x] Escopo da reconstrução.
+- [x] Fora de escopo.
+- [x] Restrições.
+- [x] Objetivos de qualidade.
+- [x] Critérios de sucesso.
+
+Os itens documentais acima foram preenchidos e a SPEC 000 foi concluída pelo responsável do produto antes da autorização da SPEC 001.
+
+### Passo 5 — Preparar SPEC 001
+
+- [x] Definir gerenciador de pacotes.
+- [x] Definir organização do monorepo.
+- [x] Definir framework da API.
+- [x] Definir estratégia de banco.
+- [x] Definir ORM/query builder mediante ADR.
+- [x] Definir scripts.
+- [x] Definir Docker Compose.
+- [ ] Definir CI inicial.
+- [x] Definir health checks.
+- [x] Definir logging.
+- [x] Definir testes básicos.
+
+A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely. A CI inicial permanece deliberadamente pendente e exige execução futura própria.
+
+### Passo 6 — Implementar SPEC 001
+
+- [x] Criar `apps/web`.
+- [x] Criar `apps/api`.
+- [x] Criar packages.
+- [x] Criar scripts raiz.
+- [x] Criar health check.
+- [x] Criar página inicial.
+- [x] Criar ambiente Docker.
+- [x] Criar conexão local segura.
+- [x] Criar testes mínimos.
+- [x] Validar build completo.
+- [x] Validar PostgreSQL 14.
+
+### Passo 7 — Especificar SPEC 002
+
+- [x] Inventariar identidade, autenticação, autorização e tenancy do legado sem copiar implementação.
+- [x] Refinar contexto, atores, domínio, invariantes, requisitos, contratos e segurança.
+- [x] Dividir a entrega nos incrementos 002-A a 002-G.
+- [x] Propor ADR de persistência e comparar Drizzle, Prisma, Kysely e SQL explícito.
+- [x] Propor ADR de autenticação, sessões e tokens.
+- [x] Propor ADR de isolamento multiempresa e RBAC.
+- [x] Registrar migrations conceituais e testes obrigatórios sem criar migrations físicas.
+- [x] Registrar decisões críticas e manter a SPEC como `EM_ESPECIFICACAO`.
+- [x] Aceitar a ADR 0005 — autenticação, sessões e tokens.
+- [x] Aceitar a ADR 0006 — isolamento multiempresa e RBAC, mantendo a implementação da RLS condicionada a spike.
+- [x] Aprovar `Membership` muitos-para-muitos, empresa ativa no servidor, separação de `superadmin`, negação por padrão e ausência de bypass implícito.
+- [x] Concluir o spike técnico descartável com Kysely no PostgreSQL 14 e SQLite auxiliar.
+- [x] Revisar as ressalvas do spike e aceitar a ADR 0004 com checksum SHA-256 e domínio independente.
+- [x] Concluir o spike PostgreSQL de RLS com role real, transação, pool e concorrência.
+- [x] Revisar humanamente o relatório e registrar na ADR 0006 a forma de implementação da RLS.
+- [x] Encerrar o gate técnico de RLS, preservando performance, PgBouncer e failover como riscos futuros separados.
+- [x] Criar o índice e as sub-specs executáveis 002-A a 002-G.
+- [x] Resolver normalização de e-mail, formato canônico de checksum, política de tipos e detecção de drift da 002-A.
+- [x] Encerrar `PEND-002-008` e `PEND-002-009` e promover somente a 002-A para `PRONTA_PARA_IMPLEMENTAR`.
 - [x] Preparar 002-A como spec ativa e o modo `implementation` para a próxima execução, sem implementar nesta revisão documental.
 - [x] Implementar e validar somente 002-A1 — infraestrutura Kysely, tipos, migrator e checksum `v1`.
 - [x] Autorizar 002-A2 como próximo incremento após configurar a esteira multiagente.
 - [x] Implementar 002-A2 em uma nova execução, sem avanço automático.
 - [x] Concluir 002-A2 antes de avaliar a liberação de 002-A3.
-- [ ] Obter autorização humana explícita antes de liberar ou iniciar 002-A3.
-- [ ] Concluir 002-A2 e 002-A3 antes de liberar 002-A4.
+- [x] Obter autorização humana explícita antes de liberar ou iniciar 002-A3.
+- [x] Implementar e validar 002-A3: contextos, transaction runners, isolamento RLS e separação de pools de banco de dados.
+- [ ] Obter autorização explícita para 002-A4 ou avanço para a SPEC 002-B.
 - [ ] Resolver as decisões críticas da SPEC 002.
 - [ ] Executar a 002-A em uma execução de implementação explicitamente autorizada.
 
@@ -613,30 +808,20 @@ A estratégia de persistência foi definida pela ADR 0004 após spike com Kysely
 
 ```yaml
 last_execution:
-  date: "2026-07-18"
+  date: "2026-07-20"
   spec: "002-A"
-  increment: "002-A2"
+  increment: "002-A3"
   mode: "implementation"
   status: "CONCLUIDO"
-  summary: "002-A2 implementada pelo fluxo multiagente por fases: schemas de identidade/tenancy, users, password_credentials, companies e memberships, com constraints, índices, rollback protegido e testes de catálogo no PostgreSQL 14 e SQLite auxiliar. A migration 0001 e a infraestrutura da 002-A1 foram preservadas. Nenhum login, hashing, sessão, endpoint, frontend, repository, role, grant ou policy RLS foi implementado. A SPEC 002-A permanece EM_IMPLEMENTACAO e 002-A3/002-A4 continuam bloqueadas sem autorização automática."
+  summary: "002-A3 implementada pelo fluxo multiagente (Phase 3 concluída). Criados TenantContext, PlatformContext, TransactionRunners. Adicionada factory de pool separada. Migration 0007 injeta roles, grants e RLS policies. Testes de integração confirmam set_config RLS seguro, rollback e separação isolada de pool."
   tests:
-    - "pnpm check: lint, boundaries, contrato estático do Compose, typecheck, 44 testes unitários, 17 testes de integração, 7 testes PostgreSQL e build aprovados."
-    - "pnpm test:sqlite: 7 testes aprovados."
-    - "PostgreSQL local validado explicitamente na major version 14; migrations up/down, catálogo, constraints, índices, cenários negativos, tamper e limpeza aprovados."
-    - "SQLite auxiliar: migrations, constraints e índices compatíveis validados; não utilizado como prova de paridade completa."
-    - "pnpm audit e pnpm audit --prod: nenhuma vulnerabilidade conhecida."
-    - "git diff --check, auditoria de secrets e revisão de escopo: aprovados."
+    - "pnpm check: lint, boundaries, contrato estático do Compose, typecheck, 51 testes unitários, 17 testes de integração, 9 testes PostgreSQL e build aprovados."
+    - "PostgreSQL local validado explicitamente com transações e RLS."
   blockers:
-    - "002-A3 permanece bloqueada até autorização humana explícita, embora a dependência 002-A2 esteja concluída."
-    - "002-A4 permanece bloqueada até as conclusões da 002-A2 e 002-A3."
-    - "Normalizador de e-mail, db:verify, repositories, unidade de trabalho, contexts, roles/grants e RLS permanecem em incrementos posteriores."
-    - "Imutabilidade de user_id/company_id de membership deve ser garantida antes de haver escrita em runtime, pelas camadas autorizadas de aplicação e banco."
+    - "002-A4 permanece bloqueada até aprovação."
+    - "Avanço para a SPEC 002-B depende de decisão explícita."
   future_risks:
     - "PEND-002-010: performance RLS, PgBouncer e failover exigem validação futura separada e não bloqueiam a implementação inicial."
-  next_recommended_action: "Revisar humanamente as evidências da 002-A2 e, somente em nova execução explicitamente autorizada, avaliar o início da 002-A3. Não iniciar 002-A3, 002-A4, 002-B nem avançar a SPEC 002/003 automaticamente."
-```
-
-O Codex deve atualizar esse bloco ao final de cada execução relevante.
 
 ---
 

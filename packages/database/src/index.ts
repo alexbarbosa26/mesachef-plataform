@@ -10,3 +10,6 @@ export {
   type DatabaseProvider,
   validateDatabaseConnectionConfig,
 } from './database-config.js';
+export * from './transaction/tenant-transaction-runner.js';
+export * from './transaction/platform-transaction-runner.js';
+export * from './factory/database-factory.js';

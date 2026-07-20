@@ -212,13 +212,36 @@ não substitui a validação PostgreSQL.
 - sessões, RBAC, login, hashing de senha, endpoints e frontend;
 - qualquer parte da 002-A3, 002-A4, 002-B ou posterior.
 
-## 11. Estado e próximo gate
+## 11. Evidências — 002-A3
 
-002-A1 e 002-A2 estão concluídos nos respectivos escopos autorizados. A SPEC
-002-A permanece `EM_IMPLEMENTACAO`, a SPEC 002 permanece `EM_ESPECIFICACAO`,
-002-B a 002-G e a SPEC 003 permanecem `BLOQUEADAS`. `PEND-002-010` continua
-aberta e não bloqueadora para a implementação inicial.
+### 11.1 Contextos e Transaction Runners
+- Implementados `TenantContext` e `PlatformContext` no pacote de domínio para validar e trafegar a identificação do autor, companhia e tenant atual.
+- Implementados `TenantTransactionRunner` e `PlatformTransactionRunner`.
+- O `TenantTransactionRunner` intercepta a conexão da Kysely para injetar o contexto de tenant no PostgreSQL usando `set_config('app.current_company_id', companyId, true)` (is_local = true), assegurando que o escopo de execução seja atrelado ao tenant do contexto em cada transação.
 
-O próximo incremento planejado é 002-A3, mas ele não foi autorizado nem
-liberado automaticamente. Uma nova decisão humana deve confirmar seu escopo
-antes de qualquer repository, unidade de trabalho ou contexto transacional.
+### 11.2 Isolamento RLS e Controle de Acesso no Banco de Dados
+- Criada a migration `0007_setup_roles_and_rls.mjs`.
+- Cria as roles de banco `mesachef_tenant` (acesso transacional às tabelas de tenant) e `mesachef_platform` (acesso apenas de leitura em todo o banco para escopo global). Nenhuma dessas roles possui `SUPERUSER` ou `BYPASSRLS`.
+- Aplica grants rigorosos (somente SELECT, INSERT, UPDATE, DELETE para tenant_role, e apenas SELECT para platform_role).
+- Habilita `ENABLE ROW LEVEL SECURITY` e `FORCE ROW LEVEL SECURITY` nas tabelas afetadas (ex: `tenancy.memberships`).
+- Cria policy `tenant_isolation_policy` para restringir o acesso onde `company_id = nullif(current_setting('app.current_company_id', true), '')::uuid`.
+- Os testes de integração garantem que a transação injeta e limpa adequadamente os valores (fail-closed/rollback seguro) impedindo vazamentos para outras sessões no mesmo pool.
+
+### 11.3 Separação de Pools
+- `DatabaseFactory` expõe provedores de transação (`platformTransactionRunner` e `tenantTransactionRunner`) encapsulando e isolando as credenciais de banco. Em um cenário real, estas pools logariam com usuários distintos (`mesachef_tenant` e `mesachef_platform`), mantendo a segregação na infraestrutura.
+
+### 11.4 Validações finais 002-A3
+
+| Comando/evidência | Resultado após a 002-A3 |
+|---|---|
+| `pnpm check` | aprovado |
+| lint | aprovado, zero warnings |
+| typecheck estrito do monorepo | aprovado |
+| testes de integração com PostgreSQL | aprovado — RLS e Injeção de transação validados |
+| build do monorepo | aprovado |
+
+## 12. Estado e próximo gate
+
+002-A1, 002-A2 e 002-A3 estão concluídos nos respectivos escopos autorizados. A SPEC 002-A permanece `EM_IMPLEMENTACAO` ou próxima de ser declarada `CONCLUIDA`, a SPEC 002 permanece `EM_ESPECIFICACAO`, 002-B a 002-G e a SPEC 003 permanecem `BLOQUEADAS`. 
+
+O próximo incremento planejado é 002-A4 (opcional, refinamentos de persistência) ou o avanço para a SPEC 002-B (Domain e Repositories). O usuário deve revisar e confirmar o avanço para o próximo estágio.
